@@ -2,13 +2,14 @@ import json
 from datetime import datetime
 from google.cloud import bigquery
 from utils.logger import logger
+from config import BIGQUERY_DATASET
 
 class SnapshotService:
     """Persists and retrieves governance snapshots."""
 
     def __init__(self, run_id):
         self.client = bigquery.Client()
-        self.dataset = "metadata_governance_dataset"
+        self.dataset = BIGQUERY_DATASET
         self.resource_table = "resource_snapshot"
         self.compliance_table = "compliance_snapshot"
         self.run_id = run_id
