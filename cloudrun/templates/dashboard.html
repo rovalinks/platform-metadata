@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<h2>Metadata Governance Dashboard</h2>
+
+<div id="loading" class="loading hidden">Loading dashboard...</div>
+
+<div class="toolbar">
+    <label>Scope</label>
+    <select id="scope">
+        <option value="organization">Organization</option>
+        <option value="project">Project</option>
+    </select>
+    <label>Project</label>
+    <select id="project" disabled></select>
+    <button id="refresh">Refresh</button>
+    <span id="refresh-timer"></span>
+    <span id="last-updated"></span>
+</div>
+
+<!-- Executive Summary Section -->
+<div id="summary-cards" class="card-grid"></div>
+<div class="card-grid">
+    <div id="brownfield-card"></div>
+    <div id="greenfield-card"></div>
+</div>
+
+<!-- Table Sections -->
+<h3>Projects</h3>
+<div id="projects-container"></div>
+
+<h3>Resource Types</h3>
+<div id="resource-types-container"></div>
+
+<h3>Recent Runs</h3>
+<div id="recent-runs-container"></div>
+
+<h3>Top Non-Compliant Resources</h3>
+<div id="non-compliant-container"></div>
+
+<footer class="footer">Enterprise Metadata Governance Platform</footer>
+
+{% endblock %}

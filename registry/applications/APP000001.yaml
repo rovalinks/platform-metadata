@@ -1,0 +1,17 @@
+schemaVersion: v1
+
+product: cpe-tagging-validation
+team: cloud-platform-engineering
+owner: rks
+budgetOwner: rohit
+organization: rba
+department: cloud-engineering
+costCenter: PLACEHOLDER
+
+bindings:
+
+  - cloud: gcp
+    projectId: platform-metadata-demo
+    region: europe-west2
+    environment: dev
+    businessCriticality: low

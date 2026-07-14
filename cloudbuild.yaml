@@ -1,0 +1,25 @@
+steps:
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - build
+      - "-t"
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/governance-engine:${_IMAGE_TAG}"
+      - "-f"
+      - "cloudrun/Dockerfile"
+      - "./cloudrun"
+
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      - push
+      - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/governance-engine:${_IMAGE_TAG}"
+
+images:
+  - "${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/governance-engine:${_IMAGE_TAG}"
+
+substitutions:
+  _REGION: "europe-west2"
+  _REPOSITORY: "platform-images"
+  _IMAGE_TAG: "latest"
+
+options:
+  logging: CLOUD_LOGGING_ONLY

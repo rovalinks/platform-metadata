@@ -1,0 +1,73 @@
+name: Deploy Metadata Governance
+
+on:
+  push:
+    branches:
+      - main
+
+    paths:
+      - "cloudrun/**"
+      - "Dockerfile"
+      - ".github/workflows/deploy.yml"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_ID: platform-metadata-demo
+      REGION: europe-west2
+      REPOSITORY: platform-images
+      IMAGE_NAME: governance-engine
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.0
+        with:
+          fetch-depth: 1
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: |
+          gcloud auth configure-docker europe-west2-docker.pkg.dev --quiet
+
+      - name: Build Image
+        run: |
+          docker build \
+            -f Dockerfile \
+            -t europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:${{ github.sha }} \
+            -t europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest \
+            .
+
+      - name: Push Image
+        run: |
+          docker push europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:${{ github.sha }}
+          docker push europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest
+
+      - name: Deploy Cloud Run
+        run: |
+          gcloud run deploy metadata-governance \
+            --project=$PROJECT_ID \
+            --region=$REGION \
+            --image=europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest \
+            --service-account=governance-engine-sa@$PROJECT_ID.iam.gserviceaccount.com \
+            --env-vars-file=cloudrun/env.yaml \
+            --memory=1Gi \
+            --cpu=2 \
+            --timeout=900 \
+            --concurrency=80 \
+            --allow-unauthenticated

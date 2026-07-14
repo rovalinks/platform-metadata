@@ -1,0 +1,49 @@
+name: Registry Sync
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "registry/**"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+
+  sync:
+
+    runs-on: ubuntu-latest
+
+    env:
+      PROJECT_ID: platform-metadata-demo
+      BUCKET: platform-metadata-demo-registry
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Synchronise Registry
+        run: |
+
+          echo "Synchronising registry..."
+
+          gcloud storage rsync \
+            registry/applications \
+            gs://$BUCKET/applications \
+            --recursive \
+            --delete-unmatched-destination-objects
+
+          echo "Registry synchronisation complete."

@@ -1,0 +1,34 @@
+# Git and Project Configuration
+.gcloudignore
+.git
+.gitignore
+.vscode/
+.idea/
+.env
+
+# Dependencies and Cache
+.venv/
+__pycache__/
+**/.venv/
+**/__pycache__/
+**/*.pyc
+*.pyc
+.pytest_cache/
+
+# Terraform
+terraform/
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.*
+terraform/terraform.tfvars
+
+# Documentation
+docs/
+README.md
+*.md
+
+# Tests
+tests/
+
+cloudrun/.env
