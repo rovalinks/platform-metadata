@@ -169,7 +169,6 @@ class ExecutorService:
         run_id: str,
         offset: int,
         batch_size: int,
-        execution_mode: str,
     ):
         """
         Execute one remediation batch.
@@ -233,7 +232,6 @@ class ExecutorService:
                 asset_type=plan.asset_type,
                 resource_name=plan.resource_name,
                 status=status,
-                execution_mode=execution_mode,
                 error_message=result.get(
                     "error"
                 ),
