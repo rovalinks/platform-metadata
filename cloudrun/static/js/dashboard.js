@@ -3,7 +3,7 @@
  */
 
 let loading = false;
-let projectCache = []; // Cache for all discovered projects[cite: 2]
+let projectCache = []; // Cache for all discovered projects
 
 document.addEventListener("DOMContentLoaded", () => {
     loadDashboard();
@@ -27,6 +27,13 @@ async function loadDashboard() {
         const scope = document.getElementById("scope").value;
         const projectEl = document.getElementById("project");
         const selectedProject = projectEl.value; 
+        
+        // Guard check: Prevent invalid backend requests if project scope is selected without a specific project id
+        if (scope === "project" && !selectedProject) {
+            loading = false;
+            if (loader) loader.classList.add("hidden");
+            return;
+        }
         
         // Construct URL
         let url = `/reports/dashboard?scope=${scope}${scope === "project" && selectedProject ? "&project_id=" + selectedProject : ""}`;
@@ -81,8 +88,9 @@ function onScopeChanged() {
         return;
     }
 
-    if (project.value === "") {
-        project.selectedIndex = 0;
+    // Wait until a project is explicitly selected from the dropdown
+    if (!project.value) {
+        return;
     }
 
     loadDashboard();
@@ -99,9 +107,12 @@ function populateProjects(projects) {
 
     const current = select.value;
 
-    select.innerHTML = projectCache.map(project =>
-        `<option value="${project.project_id}">${project.project_id}</option>`
-    ).join("");
+    // Added explicit placeholder option to prevent accidental blank/null queries
+    select.innerHTML = 
+        '<option value="">Select a project...</option>' +
+        projectCache.map(project =>
+            `<option value="${project.project_id}">${project.project_id}</option>`
+        ).join("");
 
     if (projectCache.some(project => project.project_id === current)) {
         select.value = current;
