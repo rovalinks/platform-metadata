@@ -4,6 +4,7 @@ from datetime import datetime
 from google.cloud import bigquery
 
 from utils.logger import logger
+from config import BIGQUERY_DATASET
 
 
 class SnapshotRepository:
@@ -11,7 +12,7 @@ class SnapshotRepository:
 
     def __init__(self):
         self.client = bigquery.Client()
-        self.dataset = "metadata_governance_dataset"
+        self.dataset = BIGQUERY_DATASET
         self.resource_table = "resource_snapshot"
         self.compliance_table = "compliance_snapshot"
 
