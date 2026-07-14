@@ -1346,7 +1346,7 @@ create_table "label_ownership" "resource_name" <<'EOF'
   },
   {
     "name": "managed_tags",
-    "type": "STRING",
+    "type": "JSON",
     "mode": "NULLABLE"
   },
   {
