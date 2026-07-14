@@ -1,4 +1,6 @@
 import time
+import base64
+import json
 from google.api_core.exceptions import NotFound
 
 from utils.logger import logger
@@ -55,6 +57,29 @@ class GreenfieldService:
         start = time.perf_counter()
         if isinstance(event, list):
             event = event[0]
+
+        # =====================================================================
+        # PUBSUB PAYLOAD UNWRAPPER
+        # =====================================================================
+        raw_data = None
+        
+        # Scenario 1: Standard Pub/Sub Push Envelope { "message": { "data": "..." } }
+        if isinstance(event, dict) and "message" in event and isinstance(event["message"], dict) and "data" in event["message"]:
+            raw_data = event["message"]["data"]
+            
+        # Scenario 2: Eventarc Wrapped Envelope { "data": { "message": { "data": "..." } } }
+        elif isinstance(event, dict) and "data" in event and isinstance(event["data"], dict) and "message" in event["data"] and isinstance(event["data"]["message"], dict) and "data" in event["data"]["message"]:
+            raw_data = event["data"]["message"]["data"]
+
+        # Decode base64 payload to extract the actual Google Cloud Audit Log JSON
+        if raw_data:
+            try:
+                decoded_payload = base64.b64decode(raw_data).decode("utf-8")
+                event = json.loads(decoded_payload)
+                logger.info("Successfully unwrapped and parsed incoming Pub/Sub CloudEvent.")
+            except Exception as exc:
+                logger.error("Failed to decode base64 Pub/Sub payload: %s", exc)
+        # =====================================================================
 
         audit_event = CloudEventParser.parse(event)
 
