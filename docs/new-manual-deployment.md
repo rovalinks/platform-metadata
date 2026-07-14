@@ -1329,7 +1329,35 @@ create_table "remediation_execution" "project_id,asset_type,run_id" <<'EOF'
 ]
 EOF
 
-echo "All BigQuery tables created successfully in region ${LOCATION}!"
+# =====================================================================
+# TABLE 5: label_ownership
+# =====================================================================
+create_table "label_ownership" "resource_name" <<'EOF'
+[
+  {
+    "name": "resource_name",
+    "type": "STRING",
+    "mode": "REQUIRED"
+  },
+  {
+    "name": "managed_labels",
+    "type": "JSON",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "managed_tags",
+    "type": "STRING",
+    "mode": "NULLABLE"
+  },
+  {
+    "name": "updated_at",
+    "type": "TIMESTAMP",
+    "mode": "REQUIRED"
+  }
+]
+EOF
+
+echo "All BigQuery tables created and clustered successfully in region ${LOCATION}!"
 
 
 chmod +x create-bq-tables.sh
