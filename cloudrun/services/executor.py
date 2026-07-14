@@ -232,7 +232,7 @@ class ExecutorService:
                 asset_type=plan.asset_type,
                 resource_name=plan.resource_name,
                 status=status,
-                execution_mode=execution_mode,
+                execution_mode="BROWNFIELD",
                 error_message=result.get("error"),
             )
 
