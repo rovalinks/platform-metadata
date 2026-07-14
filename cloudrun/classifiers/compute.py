@@ -43,41 +43,44 @@ class ComputeClassifier(ResourceClassifier):
         ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
 
-    def _parse_method(self, method_name: str):
+    def _resolve_key(self, event: AuditLogEvent):
         """
-        Parses method_name to find a match in the registry.
-        Leverages base.normalize_method to strip versions.
+        Resolves the registry key by looking at both the method name
+        AND the resource path for scope.
         """
-        # 1. Strip versioning: 'beta.compute.regionDisks.insert' -> 'compute.regionDisks.insert'
-        normalized = self.normalize_method(method_name)
-        # 2. Clean 'compute.' prefix
+        # 1. Normalize and clean method
+        normalized = self.normalize_method(event.method_name)
+        # Result: compute.regionDisks.insert -> regionDisks.insert
+        # Result: compute.disks.insert -> disks.insert
         clean_method = normalized.replace("compute.", "")
         
-        # 3. Match against pattern: (global|region|zone)?Collection.insert
-        match = re.match(r'(global|region|zone)?([A-Za-z]+)\.insert', clean_method)
-        if match:
-            scope_prefix, collection_camel = match.groups()
+        # 2. Extract collection name from method
+        # Match 'disks.insert' or 'regionDisks.insert'
+        match = re.match(r'(?:[A-Za-z]+)?([A-Za-z]+)\.insert', clean_method)
+        if not match:
+            return None
             
-            # Map scope prefixes
-            scope = "global"
-            if scope_prefix == "region": scope = "regions"
-            elif scope_prefix == "zone": scope = "zones"
+        collection_camel = match.group(1)
+        collection = collection_camel[0].lower() + collection_camel[1:] + "s"
+        
+        # 3. Determine Scope from Resource Name
+        scope = "global"
+        if "/zones/" in event.resource_name:
+            scope = "zones"
+        elif "/regions/" in event.resource_name:
+            scope = "regions"
             
-            # Convert CamelCase collection to snake_case plural
-            collection = collection_camel[0].lower() + collection_camel[1:] + "s"
-            
-            if (collection, scope) in self.SERVICE_REGISTRY:
-                return (collection, scope)
-                
-        return None
+        # 4. Return tuple if exists in registry
+        key = (collection, scope)
+        return key if key in self.SERVICE_REGISTRY else None
 
     def supports(self, event: AuditLogEvent) -> bool:
         if event.service_name != self.SERVICE:
             return False
-        return self._parse_method(event.method_name) is not None
+        return self._resolve_key(event) is not None
 
     def classify(self, event: AuditLogEvent) -> ResourceEvent:
-        key = self._parse_method(event.method_name)
+        key = self._resolve_key(event)
         metadata = self.SERVICE_REGISTRY[key]
         
         return ResourceEvent(
