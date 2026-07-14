@@ -3,16 +3,16 @@ import logging
 from services.tag_service import TagService
 from services.capability import CapabilityService
 from clients.compute import ComputeClient
-from clients.bigquery import BigQueryClient
-from clients.storage import StorageClient
-from clients.sql import CloudSqlClient
-from clients.artifact_registry import ArtifactRegistryClient
-from clients.pubsub import PubSubClient
-from clients.gke import GkeClient
-from clients.bigquery_reservation import BigQueryReservationClient
-from clients.secret_manager import SecretManagerClient
+# from clients.bigquery import BigQueryClient
+# from clients.storage import StorageClient
+# from clients.sql import CloudSqlClient
+# from clients.artifact_registry import ArtifactRegistryClient
+# from clients.pubsub import PubSubClient
+# from clients.gke import GkeClient
+# from clients.bigquery_reservation import BigQueryReservationClient
+# from clients.secret_manager import SecretManagerClient
 #from clients.project import ProjectClient
-from clients.kms import KmsClient
+# from clients.kms import KmsClient
 #from clients.apikeys import ApiKeysClient
 from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
@@ -28,17 +28,17 @@ class AdapterService:
         
         self.clients = [
             ComputeClient(),
-            BigQueryClient(),
-            BigQueryReservationClient(),
-            StorageClient(),
-            CloudSqlClient(),
-            ArtifactRegistryClient(),
-            PubSubClient(),
-            GkeClient(),
-            SecretManagerClient(),
-            #ProjectClient(),
-            KmsClient(),
-            #ApiKeysClient(),
+            # BigQueryClient(),
+            # BigQueryReservationClient(),
+            # StorageClient(),
+            # CloudSqlClient(),
+            # ArtifactRegistryClient(),
+            # PubSubClient(),
+            # GkeClient(),
+            # SecretManagerClient(),
+            # ProjectClient(),
+            # KmsClient(),
+            # ApiKeysClient(),
             AppEngineClient(),
             FunctionsClient(),
         ]
