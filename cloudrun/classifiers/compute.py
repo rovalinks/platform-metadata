@@ -9,7 +9,7 @@ class ComputeClassifier(ResourceClassifier):
 
     SERVICE = "compute.googleapis.com"
 
-    # Full registry of compute services
+    # Registry remains the same
     SERVICE_REGISTRY = {
         ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -23,9 +23,9 @@ class ComputeClassifier(ResourceClassifier):
         ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("sslCertificates", "regions"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "region_ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("targetHttpsProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "region_target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_url_maps_request_resource"},
+        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_target_http_proxies_request_resource"},
+        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_instance_groups_set_labels_request_resource"},
         ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
@@ -44,35 +44,32 @@ class ComputeClassifier(ResourceClassifier):
     }
 
     def _resolve_key(self, event: AuditLogEvent):
-        """
-        Resolves the registry key by looking at both the method name
-        AND the resource path for scope.
-        """
-        # 1. Normalize and clean method
-        normalized = self.normalize_method(event.method_name)
-        # Result: compute.regionDisks.insert -> regionDisks.insert
-        # Result: compute.disks.insert -> disks.insert
-        clean_method = normalized.replace("compute.", "")
+        # 1. Normalize method
+        normalized = self.normalize_method(event.method_name).replace("compute.", "")
         
-        # 2. Extract collection name from method
-        # Match 'disks.insert' or 'regionDisks.insert'
-        match = re.match(r'(?:[A-Za-z]+)?([A-Za-z]+)\.insert', clean_method)
-        if not match:
-            return None
+        # 2. Specific override for regionDisks (avoids regex ambiguity)
+        if "regionDisks.insert" in normalized:
+            return ("disks", "regions")
             
-        collection_camel = match.group(1)
-        collection = collection_camel[0].lower() + collection_camel[1:] + "s"
-        
-        # 3. Determine Scope from Resource Name
-        scope = "global"
-        if "/zones/" in event.resource_name:
-            scope = "zones"
-        elif "/regions/" in event.resource_name:
-            scope = "regions"
+        # 3. Regex for others: extract collection from e.g. "disks.insert" or "regionDisks.insert"
+        # Using a pattern that avoids capturing the scope prefix as part of the collection
+        match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', normalized)
+        if match:
+            collection_camel = match.group(1)
+            # Camel case to plural snake_case
+            collection = collection_camel[0].lower() + collection_camel[1:] + "s"
             
-        # 4. Return tuple if exists in registry
-        key = (collection, scope)
-        return key if key in self.SERVICE_REGISTRY else None
+            # Determine scope from resource path
+            scope = "global"
+            if "/zones/" in event.resource_name:
+                scope = "zones"
+            elif "/regions/" in event.resource_name:
+                scope = "regions"
+                
+            key = (collection, scope)
+            return key if key in self.SERVICE_REGISTRY else None
+            
+        return None
 
     def supports(self, event: AuditLogEvent) -> bool:
         if event.service_name != self.SERVICE:
