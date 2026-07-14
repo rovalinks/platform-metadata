@@ -60,30 +60,41 @@ jobs:
           echo "SERVICE_URL=$URL" >> $GITHUB_ENV
 
       - name: Deploy Cloud Run
+        env:
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          REGION: ${{ vars.REGION }}
+          BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
+          TASK_QUEUE: ${{ vars.TASK_QUEUE }}
+          PUBSUB_TOPIC: ${{ vars.PUBSUB_TOPIC }}
+          PUBSUB_SUBSCRIPTION: ${{ vars.PUBSUB_SUBSCRIPTION }}
+          EVENTARC_TRIGGER: ${{ vars.EVENTARC_TRIGGER }}
+          LOGGING_SINK: ${{ vars.LOGGING_SINK }}
+          CLOUD_RUN_URL: ${{ env.SERVICE_URL }}
         run: |
-          # Safely append pipeline variables to env.yaml using Python to prevent shell parsing and YAML indentation bugs
-          python3 -c "
-          with open('cloudrun/env.yaml', 'r') as f:
-              content = f.read().rstrip() + '\n'
+          # Safely append pipeline variables to env.yaml using Python via process environment
+          # Using single quotes for python execution prevents shell parsing, escaping, and YAML indentation issues.
+          python3 -c '
+          import os
+          content = ""
+          if os.path.exists("cloudrun/env.yaml"):
+              with open("cloudrun/env.yaml", "r") as f:
+                  content = f.read().rstrip() + "\n"
 
-          vars_to_append = {
-              'PROJECT_ID': '${{ vars.PROJECT_ID }}',
-              'REGION': '${{ vars.REGION }}',
-              'BIGQUERY_DATASET': '${{ vars.BIGQUERY_DATASET }}',
-              'TASK_QUEUE': '${{ vars.TASK_QUEUE }}',
-              'PUBSUB_TOPIC': '${{ vars.PUBSUB_TOPIC }}',
-              'PUBSUB_SUBSCRIPTION': '${{ vars.PUBSUB_SUBSCRIPTION }}',
-              'EVENTARC_TRIGGER': '${{ vars.EVENTARC_TRIGGER }}',
-              'LOGGING_SINK': '${{ vars.LOGGING_SINK }}',
-              'CLOUD_RUN_URL': '${{ env.SERVICE_URL }}'
-          }
+          vars_to_append = [
+              "PROJECT_ID", "REGION", "BIGQUERY_DATASET", "TASK_QUEUE",
+              "PUBSUB_TOPIC", "PUBSUB_SUBSCRIPTION", "EVENTARC_TRIGGER",
+              "LOGGING_SINK", "CLOUD_RUN_URL"
+          ]
 
-          for k, v in vars_to_append.items():
-              content += f'{k}: \"{v}\"\n'
+          for key in vars_to_append:
+              val = os.environ.get(key, "")
+              content += f"{key}: \"{val}\"\n"
 
-          with open('cloudrun/env.yaml', 'w') as f:
+          # Ensure the cloudrun directory exists just in case
+          os.makedirs("cloudrun", exist_ok=True)
+          with open("cloudrun/env.yaml", "w") as f:
               f.write(content)
-          "
+          '
 
           # Deploy using only the env-vars-file
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
