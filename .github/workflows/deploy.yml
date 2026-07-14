@@ -63,8 +63,11 @@ jobs:
         env:
           PROJECT_ID: ${{ vars.PROJECT_ID }}
           REGION: ${{ vars.REGION }}
+          TAG_PARENT: ${{ vars.TAG_PARENT }}
+          REGISTRY_BUCKET: ${{ vars.REGISTRY_BUCKET }}
           BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
           TASK_QUEUE: ${{ vars.TASK_QUEUE }}
+          SERVICE_ACCOUNT_EMAIL: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
           PUBSUB_TOPIC: ${{ vars.PUBSUB_TOPIC }}
           PUBSUB_SUBSCRIPTION: ${{ vars.PUBSUB_SUBSCRIPTION }}
           EVENTARC_TRIGGER: ${{ vars.EVENTARC_TRIGGER }}
@@ -81,7 +84,8 @@ jobs:
                   content = f.read().rstrip() + "\n"
 
           vars_to_append = [
-              "PROJECT_ID", "REGION", "BIGQUERY_DATASET", "TASK_QUEUE",
+              "PROJECT_ID", "REGION", "TAG_PARENT", "REGISTRY_BUCKET",
+              "BIGQUERY_DATASET", "TASK_QUEUE", "SERVICE_ACCOUNT_EMAIL",
               "PUBSUB_TOPIC", "PUBSUB_SUBSCRIPTION", "EVENTARC_TRIGGER",
               "LOGGING_SINK", "CLOUD_RUN_URL"
           ]
