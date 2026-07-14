@@ -4,460 +4,157 @@ import logging
 from clients.base import ResourceClient
 from models.resource import Resource
 import config
-from utils.compute import (
-    parse_instance_name, parse_disk_name, parse_address_name,
-    parse_forwarding_rule_name, parse_snapshot_name,
-    parse_image_name, parse_machine_image_name,
-    parse_instance_group_name, parse_target_pool_name,
-    parse_resource_policy_name, parse_network_attachment_name,
-    parse_service_attachment_name, parse_vpn_gateway_name,
-    parse_packet_mirroring_name, parse_external_vpn_gateway_name,
-    parse_network_endpoint_group_name,
-)
 
 logger = logging.getLogger(__name__)
 
 class ComputeClient(ResourceClient):
-    """Compute Engine resource adapter with centralized label management."""
-
-    SUPPORTED_LABEL_TYPES = {
-        "compute.googleapis.com/Instance",
-        "compute.googleapis.com/Disk",
-        "compute.googleapis.com/Address",
-        "compute.googleapis.com/ForwardingRule",
-        "compute.googleapis.com/NetworkEndpointGroup",
-        "compute.googleapis.com/Snapshot",
-        "compute.googleapis.com/Image",
-        "compute.googleapis.com/MachineImage",
-        "compute.googleapis.com/InstanceGroup",
-        "compute.googleapis.com/TargetPool",
-        "compute.googleapis.com/NetworkAttachment",
-        "compute.googleapis.com/ServiceAttachment",
-        "compute.googleapis.com/VpnGateway",
-        "compute.googleapis.com/PacketMirroring",
-        "compute.googleapis.com/ExternalVpnGateway",
+    REGISTRY = {
+        ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
+        ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("disks", "regions"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "region_disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("subnetworks", "regions"): {"asset_type": "compute.googleapis.com/Subnetwork", "client_attr": "subnetworks", "get_arg": "subnetwork", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("healthChecks", "regions"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "region_health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("backendServices", "regions"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "region_backend_services", "get_arg": "backend_service", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("sslCertificates", "regions"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "region_ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetHttpsProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "region_target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("backendServices", "global"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "backend_services", "get_arg": "backend_service", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("sslCertificates", "global"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("targetHttpsProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("urlMaps", "global"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("snapshots", "global"): {"asset_type": "compute.googleapis.com/Snapshot", "client_attr": "snapshots", "get_arg": "snapshot", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("targetHttpProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("machineImages", "global"): {"asset_type": "compute.googleapis.com/MachineImage", "client_attr": "machine_images", "get_arg": "machine_image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
-
+    
+    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta["set_labels_request_cls"] is not None}
+    
     def __init__(self):
-        self.instances = compute_v1.InstancesClient()
-        self.disks = compute_v1.DisksClient()
-        self.addresses = compute_v1.AddressesClient()
-        self.forwarding_rules = compute_v1.ForwardingRulesClient()
+        # Operations clients
         self.zone_operations = compute_v1.ZoneOperationsClient()
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
-        self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
+
+        # Core Resource clients
+        self.instances = compute_v1.InstancesClient()
+        self.disks = compute_v1.DisksClient()
+        self.region_disks = compute_v1.RegionDisksClient()
         self.snapshots = compute_v1.SnapshotsClient()
         self.images = compute_v1.ImagesClient()
         self.machine_images = compute_v1.MachineImagesClient()
-        self.instance_groups = compute_v1.InstanceGroupsClient()
-        self.target_pools = compute_v1.TargetPoolsClient()
-        self.resource_policies = compute_v1.ResourcePoliciesClient()
-        self.vpn_gateways = compute_v1.VpnGatewaysClient()
+        
+        # Networking clients
+        self.networks = compute_v1.NetworksClient()
+        self.subnetworks = compute_v1.SubnetworksClient()
+        self.firewalls = compute_v1.FirewallsClient()
+        self.addresses = compute_v1.AddressesClient()
+        self.global_addresses = compute_v1.GlobalAddressesClient()
+        self.forwarding_rules = compute_v1.ForwardingRulesClient()
+        self.routers = compute_v1.RoutersClient()
         self.network_attachments = compute_v1.NetworkAttachmentsClient()
         self.service_attachments = compute_v1.ServiceAttachmentsClient()
-        self.packet_mirroring = compute_v1.PacketMirroringsClient()
+        
+        # VPN and Pool clients
+        self.vpn_gateways = compute_v1.VpnGatewaysClient()
+        self.vpn_tunnels = compute_v1.VpnTunnelsClient()
+        self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
         self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
+        self.packet_mirrorings = compute_v1.PacketMirroringsClient()
+        self.target_pools = compute_v1.TargetPoolsClient()
 
-    def supports(self, asset_type: str):
-        return asset_type.startswith("compute.googleapis.com/")
+        # Load Balancing and Proxy clients
+        self.ssl_certificates = compute_v1.SslCertificatesClient()
+        self.region_ssl_certificates = compute_v1.RegionSslCertificatesClient()
+        self.ssl_policies = compute_v1.SslPoliciesClient()
+        self.target_http_proxies = compute_v1.TargetHttpProxiesClient()
+        self.region_target_http_proxies = compute_v1.RegionTargetHttpProxiesClient()
+        self.target_https_proxies = compute_v1.TargetHttpsProxiesClient()
+        self.region_target_https_proxies = compute_v1.RegionTargetHttpsProxiesClient()
+        self.url_maps = compute_v1.UrlMapsClient()
+        self.region_url_maps = compute_v1.RegionUrlMapsClient()
+        self.backend_services = compute_v1.BackendServicesClient()
+        self.region_backend_services = compute_v1.RegionBackendServicesClient()
+        self.health_checks = compute_v1.HealthChecksClient()
+        self.region_health_checks = compute_v1.RegionHealthChecksClient()
+        
+        # Instance group and security clients
+        self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
+        self.instance_groups = compute_v1.InstanceGroupsClient()
+        self.region_instance_groups = compute_v1.RegionInstanceGroupsClient()
+        self.instance_templates = compute_v1.InstanceTemplatesClient()
+        self.instance_group_managers = compute_v1.InstanceGroupManagersClient()
+        self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
+        self.resource_policies = compute_v1.ResourcePoliciesClient()
+        self.security_policies = compute_v1.SecurityPoliciesClient()
 
-    def supports_labels(self, asset_type: str):
-        return asset_type in self.SUPPORTED_LABEL_TYPES
-
-    def labels(self, resource: Resource):
+    def supports(self, a): return a.startswith("compute.googleapis.com/")
+    
+    def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
+    
+    def _parse_resource_url(self, u):
+        if u.startswith("//compute.googleapis.com/"): u = u[len("//compute.googleapis.com/"):]
+        p = u.strip("/").split("/")
+        proj, scope = p[1], p[2]
+        if scope in ("zones", "regions"): return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
+        return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
+    
+    def labels(self, r: Resource):
         try:
-            if not self.supports_labels(resource.asset_type):
-                return None
-            
-            # Simplified getter logic mapping
-            if "/instances/" in resource.name:
-                info = parse_instance_name(resource.name)
-                res = self.instances.get(project=info["project"], zone=info["zone"], instance=info["instance"])
-            elif "/disks/" in resource.name:
-                info = parse_disk_name(resource.name)
-                res = self.disks.get(project=info["project"], zone=info["zone"], disk=info["disk"])
-            elif "/addresses/" in resource.name:
-                info = parse_address_name(resource.name)
-                res = self.addresses.get(project=info["project"], region=info["region"], address=info["address"])
-            elif "/forwardingRules/" in resource.name:
-                info = parse_forwarding_rule_name(resource.name)
-                res = self.forwarding_rules.get(project=info["project"], region=info["region"], forwarding_rule=info["forwarding_rule"])
-            elif "/networkEndpointGroups/" in resource.name:
-                info = parse_network_endpoint_group_name(resource.name)
-                res = self.network_endpoint_groups.get(project=info["project"], zone=info["zone"], network_endpoint_group=info["network_endpoint_group"])
-            elif "/snapshots/" in resource.name:
-                info = parse_snapshot_name(resource.name)
-                res = self.snapshots.get(project=info["project"], snapshot=info["snapshot"])
-            elif "/images/" in resource.name:
-                info = parse_image_name(resource.name)
-                res = self.images.get(project=info["project"], image=info["image"])
-            elif "/machineImages/" in resource.name:
-                info = parse_machine_image_name(resource.name)
-                res = self.machine_images.get(project=info["project"], machine_image=info["machine_image"])
-            elif "/instanceGroups/" in resource.name:
-                info = parse_instance_group_name(resource.name)
-                res = self.instance_groups.get(project=info["project"], zone=info["zone"], instance_group=info["instance_group"])
-            elif "/targetPools/" in resource.name:
-                info = parse_target_pool_name(resource.name)
-                res = self.target_pools.get(project=info["project"], region=info["region"], target_pool=info["target_pool"])
-            elif "/networkAttachments/" in resource.name:
-                info = parse_network_attachment_name(resource.name)
-                res = self.network_attachments.get(project=info["project"], region=info["region"], network_attachment=info["network_attachment"])
-            elif "/serviceAttachments/" in resource.name:
-                info = parse_service_attachment_name(resource.name)
-                res = self.service_attachments.get(project=info["project"], region=info["region"], service_attachment=info["service_attachment"])
-            elif "/vpnGateways/" in resource.name:
-                info = parse_vpn_gateway_name(resource.name)
-                res = self.vpn_gateways.get(project=info["project"], region=info["region"], vpn_gateway=info["vpn_gateway"])
-            elif "/packetMirrorings/" in resource.name:
-                info = parse_packet_mirroring_name(resource.name)
-                res = self.packet_mirroring.get(project=info["project"], region=info["region"], packet_mirroring=info["packet_mirroring"])
-            elif "/externalVpnGateways/" in resource.name:
-                info = parse_external_vpn_gateway_name(resource.name)
-                res = self.external_vpn_gateways.get(project=info["project"], external_vpn_gateway=info["external_vpn_gateway"])
-            else:
-                return None
-            
-            return dict(getattr(res, "labels", {}))
+            if not self.supports_labels(r.asset_type): return None
+            info = self._parse_resource_url(r.name)
+            entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+            client = getattr(self, entry["client_attr"])
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+            return dict(getattr(client.get(**kwargs), "labels", {}))
         except Exception as e:
-            logger.exception(f"Failed to fetch labels for {resource.name}: {e}")
-            return None
-
-    def get(self, resource_name: str) -> Resource:
-        """
-        Returns a Resource object for Greenfield remediation.
-        Supports all Compute resource types defined in SUPPORTED_LABEL_TYPES.
-        """
-        if "/instances/" in resource_name:
-            info = parse_instance_name(resource_name)
-            res = self.instances.get(project=info["project"], zone=info["zone"], instance=info["instance"])
-            return Resource(
-                asset_type="compute.googleapis.com/Instance",
-                name=resource_name,
-                project=info["project"],
-                location=info["zone"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/disks/" in resource_name:
-            info = parse_disk_name(resource_name)
-            res = self.disks.get(project=info["project"], zone=info["zone"], disk=info["disk"])
-            return Resource(
-                asset_type="compute.googleapis.com/Disk",
-                name=resource_name,
-                project=info["project"],
-                location=info["zone"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/addresses/" in resource_name:
-            info = parse_address_name(resource_name)
-            res = self.addresses.get(project=info["project"], region=info["region"], address=info["address"])
-            return Resource(
-                asset_type="compute.googleapis.com/Address",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/forwardingRules/" in resource_name:
-            info = parse_forwarding_rule_name(resource_name)
-            res = self.forwarding_rules.get(project=info["project"], region=info["region"], forwarding_rule=info["forwarding_rule"])
-            return Resource(
-                asset_type="compute.googleapis.com/ForwardingRule",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/networkEndpointGroups/" in resource_name:
-            info = parse_network_endpoint_group_name(resource_name)
-            res = self.network_endpoint_groups.get(project=info["project"], zone=info["zone"], network_endpoint_group=info["network_endpoint_group"])
-            return Resource(
-                asset_type="compute.googleapis.com/NetworkEndpointGroup",
-                name=resource_name,
-                project=info["project"],
-                location=info["zone"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/snapshots/" in resource_name:
-            info = parse_snapshot_name(resource_name)
-            res = self.snapshots.get(project=info["project"], snapshot=info["snapshot"])
-            return Resource(
-                asset_type="compute.googleapis.com/Snapshot",
-                name=resource_name,
-                project=info["project"],
-                location="global",
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/images/" in resource_name:
-            info = parse_image_name(resource_name)
-            res = self.images.get(project=info["project"], image=info["image"])
-            return Resource(
-                asset_type="compute.googleapis.com/Image",
-                name=resource_name,
-                project=info["project"],
-                location="global",
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/machineImages/" in resource_name:
-            info = parse_machine_image_name(resource_name)
-            res = self.machine_images.get(project=info["project"], machine_image=info["machine_image"])
-            return Resource(
-                asset_type="compute.googleapis.com/MachineImage",
-                name=resource_name,
-                project=info["project"],
-                location="global",
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/instanceGroups/" in resource_name:
-            info = parse_instance_group_name(resource_name)
-            res = self.instance_groups.get(project=info["project"], zone=info["zone"], instance_group=info["instance_group"])
-            return Resource(
-                asset_type="compute.googleapis.com/InstanceGroup",
-                name=resource_name,
-                project=info["project"],
-                location=info["zone"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/targetPools/" in resource_name:
-            info = parse_target_pool_name(resource_name)
-            res = self.target_pools.get(project=info["project"], region=info["region"], target_pool=info["target_pool"])
-            return Resource(
-                asset_type="compute.googleapis.com/TargetPool",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/networkAttachments/" in resource_name:
-            info = parse_network_attachment_name(resource_name)
-            res = self.network_attachments.get(project=info["project"], region=info["region"], network_attachment=info["network_attachment"])
-            return Resource(
-                asset_type="compute.googleapis.com/NetworkAttachment",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/serviceAttachments/" in resource_name:
-            info = parse_service_attachment_name(resource_name)
-            res = self.service_attachments.get(project=info["project"], region=info["region"], service_attachment=info["service_attachment"])
-            return Resource(
-                asset_type="compute.googleapis.com/ServiceAttachment",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/vpnGateways/" in resource_name:
-            info = parse_vpn_gateway_name(resource_name)
-            res = self.vpn_gateways.get(project=info["project"], region=info["region"], vpn_gateway=info["vpn_gateway"])
-            return Resource(
-                asset_type="compute.googleapis.com/VpnGateway",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/packetMirrorings/" in resource_name:
-            info = parse_packet_mirroring_name(resource_name)
-            res = self.packet_mirroring.get(project=info["project"], region=info["region"], packet_mirroring=info["packet_mirroring"])
-            return Resource(
-                asset_type="compute.googleapis.com/PacketMirroring",
-                name=resource_name,
-                project=info["project"],
-                location=info["region"],
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        elif "/externalVpnGateways/" in resource_name:
-            info = parse_external_vpn_gateway_name(resource_name)
-            res = self.external_vpn_gateways.get(project=info["project"], external_vpn_gateway=info["external_vpn_gateway"])
-            return Resource(
-                asset_type="compute.googleapis.com/ExternalVpnGateway",
-                name=resource_name,
-                project=info["project"],
-                location="global",
-                labels=dict(getattr(res, "labels", {}))
-            )
-
-        else:
-            raise ValueError(f"Unsupported Compute resource: {resource_name}")
-
-    def _merge_labels(self, existing, labels):
-        merged = existing.copy()
-        if config.PRESERVE_EXISTING_LABELS:
-            for k, v in labels.items():
-                if k not in merged: merged[k] = v
-        else:
-            merged.update(labels)
-        return merged
-
-    def _apply_labels_generic(self, getter, setter_func, request_cls, labels):
-        def run_set():
-            resource = getter()
-            existing = dict(getattr(resource, "labels", {}))
-            merged = self._merge_labels(existing, labels)
-            if merged == existing:
-                return True
-            request = request_cls(labels=merged, label_fingerprint=resource.label_fingerprint)
-            return setter_func(request)
-
-        try:
-            return run_set()
-        except PreconditionFailed:
-            return run_set()
-
-    def apply_labels(self, resource, labels: dict):
-        if "/instances/" in resource.name:
-            info = parse_instance_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.instances.get(project=info["project"], zone=info["zone"], instance=info["instance"]),
-                lambda req: self.instances.set_labels(project=info["project"], zone=info["zone"], instance=info["instance"], instances_set_labels_request_resource=req),
-                compute_v1.InstancesSetLabelsRequest, labels
-            )
-            if op and op is not True: self.zone_operations.wait(project=info["project"], zone=info["zone"], operation=op.name)
+            logger.exception("Failed to fetch labels: %s", e); return None
+            
+    def get(self, n: str) -> Resource:
+        info = self._parse_resource_url(n)
+        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        client = getattr(self, entry["client_attr"])
+        kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+        if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+        res = client.get(**kwargs)
+        return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
         
-        elif "/disks/" in resource.name:
-            info = parse_disk_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.disks.get(project=info["project"], zone=info["zone"], disk=info["disk"]),
-                lambda req: self.disks.set_labels(project=info["project"], zone=info["zone"], resource=info["disk"], zone_set_labels_request_resource=req),
-                compute_v1.ZoneSetLabelsRequest, labels
-            )
-            if op and op is not True: self.zone_operations.wait(project=info["project"], zone=info["zone"], operation=op.name)
-
-        elif "/addresses/" in resource.name:
-            info = parse_address_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.addresses.get(project=info["project"], region=info["region"], address=info["address"]),
-                lambda req: self.addresses.set_labels(project=info["project"], region=info["region"], resource=info["address"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/forwardingRules/" in resource.name:
-            info = parse_forwarding_rule_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.forwarding_rules.get(project=info["project"], region=info["region"], forwarding_rule=info["forwarding_rule"]),
-                lambda req: self.forwarding_rules.set_labels(project=info["project"], region=info["region"], resource=info["forwarding_rule"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/networkEndpointGroups/" in resource.name:
-            info = parse_network_endpoint_group_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.network_endpoint_groups.get(project=info["project"], zone=info["zone"], network_endpoint_group=info["network_endpoint_group"]),
-                lambda req: self.network_endpoint_groups.set_labels(project=info["project"], zone=info["zone"], resource=info["network_endpoint_group"], zone_set_labels_request_resource=req),
-                compute_v1.ZoneSetLabelsRequest, labels
-            )
-            if op and op is not True: self.zone_operations.wait(project=info["project"], zone=info["zone"], operation=op.name)
-
-        elif "/snapshots/" in resource.name:
-            info = parse_snapshot_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.snapshots.get(project=info["project"], snapshot=info["snapshot"]),
-                lambda req: self.snapshots.set_labels(project=info["project"], resource=info["snapshot"], global_set_labels_request_resource=req),
-                compute_v1.GlobalSetLabelsRequest, labels
-            )
-            if op and op is not True: self.global_operations.wait(project=info["project"], operation=op.name)
-
-        elif "/images/" in resource.name:
-            info = parse_image_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.images.get(project=info["project"], image=info["image"]),
-                lambda req: self.images.set_labels(project=info["project"], resource=info["image"], global_set_labels_request_resource=req),
-                compute_v1.GlobalSetLabelsRequest, labels
-            )
-            if op and op is not True: self.global_operations.wait(project=info["project"], operation=op.name)
-
-        elif "/machineImages/" in resource.name:
-            info = parse_machine_image_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.machine_images.get(project=info["project"], machine_image=info["machine_image"]),
-                lambda req: self.machine_images.set_labels(project=info["project"], resource=info["machine_image"], global_set_labels_request_resource=req),
-                compute_v1.GlobalSetLabelsRequest, labels
-            )
-            if op and op is not True: self.global_operations.wait(project=info["project"], operation=op.name)
-
-        elif "/instanceGroups/" in resource.name:
-            info = parse_instance_group_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.instance_groups.get(project=info["project"], zone=info["zone"], instance_group=info["instance_group"]),
-                lambda req: self.instance_groups.set_labels(project=info["project"], zone=info["zone"], resource=info["instance_group"], zone_set_labels_request_resource=req),
-                compute_v1.ZoneSetLabelsRequest, labels
-            )
-            if op and op is not True: self.zone_operations.wait(project=info["project"], zone=info["zone"], operation=op.name)
-
-        elif "/targetPools/" in resource.name:
-            info = parse_target_pool_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.target_pools.get(project=info["project"], region=info["region"], target_pool=info["target_pool"]),
-                lambda req: self.target_pools.set_labels(project=info["project"], region=info["region"], resource=info["target_pool"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/networkAttachments/" in resource.name:
-            info = parse_network_attachment_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.network_attachments.get(project=info["project"], region=info["region"], network_attachment=info["network_attachment"]),
-                lambda req: self.network_attachments.set_labels(project=info["project"], region=info["region"], resource=info["network_attachment"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/serviceAttachments/" in resource.name:
-            info = parse_service_attachment_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.service_attachments.get(project=info["project"], region=info["region"], service_attachment=info["service_attachment"]),
-                lambda req: self.service_attachments.set_labels(project=info["project"], region=info["region"], resource=info["service_attachment"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/vpnGateways/" in resource.name:
-            info = parse_vpn_gateway_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.vpn_gateways.get(project=info["project"], region=info["region"], vpn_gateway=info["vpn_gateway"]),
-                lambda req: self.vpn_gateways.set_labels(project=info["project"], region=info["region"], resource=info["vpn_gateway"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/packetMirrorings/" in resource.name:
-            info = parse_packet_mirroring_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.packet_mirroring.get(project=info["project"], region=info["region"], packet_mirroring=info["packet_mirroring"]),
-                lambda req: self.packet_mirroring.set_labels(project=info["project"], region=info["region"], resource=info["packet_mirroring"], region_set_labels_request_resource=req),
-                compute_v1.RegionSetLabelsRequest, labels
-            )
-            if op and op is not True: self.region_operations.wait(project=info["project"], region=info["region"], operation=op.name)
-
-        elif "/externalVpnGateways/" in resource.name:
-            info = parse_external_vpn_gateway_name(resource.name)
-            op = self._apply_labels_generic(
-                lambda: self.external_vpn_gateways.get(project=info["project"], external_vpn_gateway=info["external_vpn_gateway"]),
-                lambda req: self.external_vpn_gateways.set_labels(project=info["project"], resource=info["external_vpn_gateway"], global_set_labels_request_resource=req),
-                compute_v1.GlobalSetLabelsRequest, labels
-            )
-            if op and op is not True: self.global_operations.wait(project=info["project"], operation=op.name)
-
-        else:
-            raise ValueError(f"Unsupported Compute resource: {resource.name}")
+    def _apply_labels_generic(self, g, s, req_cls, labels):
+        def run():
+            res = g(); ex = dict(getattr(res, "labels", {})); m = ex.copy()
+            if config.PRESERVE_EXISTING_LABELS:
+                for k, v in labels.items():
+                    if k not in m: m[k] = v
+            else: m.update(labels)
+            if m == ex: return True
+            return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
+        try: return run()
+        except PreconditionFailed: return run()
         
+    def apply_labels(self, res, labels: dict):
+        info = self._parse_resource_url(res.name); entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        if not entry or not entry.get("set_labels_request_cls"): return True
+        client = getattr(self, entry["client_attr"]); meth = getattr(client, entry["set_labels_method"])
+        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
+        def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
+        def set_r(req): kwargs = {"project": info["project"], "resource": info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
+        op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
+        if op and op is not True:
+            if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
+            elif info["scope_type"] == "regions": self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
+            else: self.global_operations.wait(project=info["project"], operation=op.name)
         return True
