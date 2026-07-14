@@ -232,9 +232,8 @@ class ExecutorService:
                 asset_type=plan.asset_type,
                 resource_name=plan.resource_name,
                 status=status,
-                error_message=result.get(
-                    "error"
-                ),
+                execution_mode=execution_mode,
+                error_message=result.get("error"),
             )
 
             if status == "SUCCESS":
