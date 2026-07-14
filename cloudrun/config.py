@@ -1,17 +1,4 @@
 import os
-from pathlib import Path
-from dotenv import load_dotenv
-
-BASE_DIR = Path(__file__).resolve().parent
-
-#
-# Only load .env for local development.
-# Cloud Run receives configuration from environment variables.
-#
-dotenv_file = BASE_DIR / ".env"
-
-if dotenv_file.exists():
-    load_dotenv(dotenv_file)
 
 def get_env_or_raise(key: str) -> str:
     value = os.getenv(key)

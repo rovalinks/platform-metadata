@@ -66,6 +66,7 @@ jobs:
             --region=${{ vars.REGION }} \
             --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest" \
             --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
+            --env-vars-file=cloudrun/env.yaml \
             --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},PUBSUB_TOPIC=${{ vars.PUBSUB_TOPIC }},PUBSUB_SUBSCRIPTION=${{ vars.PUBSUB_SUBSCRIPTION }},EVENTARC_TRIGGER=${{ vars.EVENTARC_TRIGGER }},LOGGING_SINK=${{ vars.LOGGING_SINK }},CLOUD_RUN_URL=${{ env.SERVICE_URL }}" \
             --memory=1Gi \
             --cpu=2 \
