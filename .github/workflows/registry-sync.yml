@@ -12,17 +12,10 @@ permissions:
   id-token: write
 
 jobs:
-
   sync:
-
     runs-on: ubuntu-latest
 
-    env:
-      PROJECT_ID: platform-metadata-demo
-      BUCKET: platform-metadata-demo-registry
-
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -37,12 +30,10 @@ jobs:
 
       - name: Synchronise Registry
         run: |
-
           echo "Synchronising registry..."
-
           gcloud storage rsync \
             registry/applications \
-            gs://$BUCKET/applications \
+            gs://${{ vars.REGISTRY_BUCKET }}/applications \
             --recursive \
             --delete-unmatched-destination-objects
 

@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-
     paths:
       - "cloudrun/**"
       - "Dockerfile"
@@ -16,17 +15,9 @@ permissions:
 
 jobs:
   deploy:
-
     runs-on: ubuntu-latest
 
-    env:
-      PROJECT_ID: platform-metadata-demo
-      REGION: europe-west2
-      REPOSITORY: platform-images
-      IMAGE_NAME: governance-engine
-
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4.2.0
         with:
@@ -43,29 +34,39 @@ jobs:
 
       - name: Configure Docker
         run: |
-          gcloud auth configure-docker europe-west2-docker.pkg.dev --quiet
+          gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
 
       - name: Build Image
         run: |
           docker build \
             -f Dockerfile \
-            -t europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:${{ github.sha }} \
-            -t europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest \
+            -t ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:${{ github.sha }} \
+            -t ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest \
             .
 
       - name: Push Image
         run: |
-          docker push europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:${{ github.sha }}
-          docker push europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest
+          docker push ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}
+          docker push ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest
+
+      - name: Get Cloud Run URL
+        id: service_url
+        run: |
+          # 2>/dev/null || echo "" handles the very first deployment gracefully if the service doesn't exist yet
+          URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --region=${{ vars.REGION }} \
+            --format="value(status.url)" 2>/dev/null || echo "")
+          echo "SERVICE_URL=$URL" >> $GITHUB_ENV
 
       - name: Deploy Cloud Run
         run: |
-          gcloud run deploy metadata-governance \
-            --project=$PROJECT_ID \
-            --region=$REGION \
-            --image=europe-west2-docker.pkg.dev/$PROJECT_ID/$REPOSITORY/$IMAGE_NAME:latest \
-            --service-account=governance-engine-sa@$PROJECT_ID.iam.gserviceaccount.com \
-            --env-vars-file=cloudrun/env.yaml \
+          gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --region=${{ vars.REGION }} \
+            --image=${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest \
+            --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
+            --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},PUBSUB_TOPIC=${{ vars.PUBSUB_TOPIC }},PUBSUB_SUBSCRIPTION=${{ vars.PUBSUB_SUBSCRIPTION }},EVENTARC_TRIGGER=${{ vars.EVENTARC_TRIGGER }},LOGGING_SINK=${{ vars.LOGGING_SINK }},CLOUD_RUN_URL=${{ env.SERVICE_URL }}" \
             --memory=1Gi \
             --cpu=2 \
             --timeout=900 \
