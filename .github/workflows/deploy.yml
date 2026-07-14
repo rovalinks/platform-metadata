@@ -61,18 +61,29 @@ jobs:
 
       - name: Deploy Cloud Run
         run: |
-          # Dynamically append the pipeline variables to the existing env.yaml file
-          cat <<EOF >> cloudrun/env.yaml
-          PROJECT_ID: "${{ vars.PROJECT_ID }}"
-          REGION: "${{ vars.REGION }}"
-          BIGQUERY_DATASET: "${{ vars.BIGQUERY_DATASET }}"
-          TASK_QUEUE: "${{ vars.TASK_QUEUE }}"
-          PUBSUB_TOPIC: "${{ vars.PUBSUB_TOPIC }}"
-          PUBSUB_SUBSCRIPTION: "${{ vars.PUBSUB_SUBSCRIPTION }}"
-          EVENTARC_TRIGGER: "${{ vars.EVENTARC_TRIGGER }}"
-          LOGGING_SINK: "${{ vars.LOGGING_SINK }}"
-          CLOUD_RUN_URL: "${{ env.SERVICE_URL }}"
-          EOF
+          # Safely append pipeline variables to env.yaml using Python to prevent shell parsing and YAML indentation bugs
+          python3 -c "
+          with open('cloudrun/env.yaml', 'r') as f:
+              content = f.read().rstrip() + '\n'
+
+          vars_to_append = {
+              'PROJECT_ID': '${{ vars.PROJECT_ID }}',
+              'REGION': '${{ vars.REGION }}',
+              'BIGQUERY_DATASET': '${{ vars.BIGQUERY_DATASET }}',
+              'TASK_QUEUE': '${{ vars.TASK_QUEUE }}',
+              'PUBSUB_TOPIC': '${{ vars.PUBSUB_TOPIC }}',
+              'PUBSUB_SUBSCRIPTION': '${{ vars.PUBSUB_SUBSCRIPTION }}',
+              'EVENTARC_TRIGGER': '${{ vars.EVENTARC_TRIGGER }}',
+              'LOGGING_SINK': '${{ vars.LOGGING_SINK }}',
+              'CLOUD_RUN_URL': '${{ env.SERVICE_URL }}'
+          }
+
+          for k, v in vars_to_append.items():
+              content += f'{k}: \"{v}\"\n'
+
+          with open('cloudrun/env.yaml', 'w') as f:
+              f.write(content)
+          "
 
           # Deploy using only the env-vars-file
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
