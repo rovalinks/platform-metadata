@@ -1098,18 +1098,20 @@ echo "Ensuring BigQuery dataset '${DATASET_ID}' exists..."
 bq show --project_id="${PROJECT_ID}" "${DATASET_ID}" > /dev/null 2>&1 || \
 bq --project_id="${PROJECT_ID}" mk --dataset --location="${LOCATION}" "${DATASET_ID}"
 
-# Helper function to read schema from stdin and create the table
+# Helper function to read schema from stdin and create the clustered table
 create_table() {
   local table_name=$1
+  local clustering_fields=$2
 
-  echo "Creating table: ${table_name}..."
+  echo "Creating table: ${table_name} (Clustered by: ${clustering_fields})..."
   
   # Read schema from stdin and write to a temporary file
   cat > "/tmp/${table_name}_schema.json"
   
-  # Create the table using the schema file
+  # Create the table using the schema file and clustering configuration
   bq --project_id="${PROJECT_ID}" mk \
     --table \
+    --clustering_fields="${clustering_fields}" \
     "${DATASET_ID}.${table_name}" \
     "/tmp/${table_name}_schema.json"
 
@@ -1120,7 +1122,7 @@ create_table() {
 # =====================================================================
 # TABLE 1: resource_snapshot
 # =====================================================================
-create_table "resource_snapshot" <<'EOF'
+create_table "resource_snapshot" "project_id,asset_type,run_id" <<'EOF'
 [
   {
     "name": "run_id",
@@ -1162,7 +1164,7 @@ EOF
 # =====================================================================
 # TABLE 2: compliance_snapshot
 # =====================================================================
-create_table "compliance_snapshot" <<'EOF'
+create_table "compliance_snapshot" "project_id,asset_type,run_id" <<'EOF'
 [
   {
     "name": "run_id",
@@ -1204,7 +1206,7 @@ EOF
 # =====================================================================
 # TABLE 3: remediation_plan
 # =====================================================================
-create_table "remediation_plan" <<'EOF'
+create_table "remediation_plan" "project_id,asset_type,run_id" <<'EOF'
 [
   {
     "name": "run_id",
@@ -1257,7 +1259,7 @@ EOF
 # =====================================================================
 # TABLE 4: remediation_execution
 # =====================================================================
-create_table "remediation_execution" <<'EOF'
+create_table "remediation_execution" "project_id,asset_type,run_id" <<'EOF'
 [
   {
     "name": "execution_id",
