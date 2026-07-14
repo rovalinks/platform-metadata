@@ -11,7 +11,7 @@ costCenter: PLACEHOLDER
 bindings:
 
   - cloud: gcp
-    projectId: platform-metadata-demo
+    projectId: payments-dev-1
     region: europe-west2
     environment: dev
     businessCriticality: low
