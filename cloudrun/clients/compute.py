@@ -13,6 +13,7 @@ class ComputeClient(ResourceClient):
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("resourcePolicies", "regions"): {"asset_type": "compute.googleapis.com/ResourcePolicy", "client_attr": "resource_policies", "get_arg": "resource_policy", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
         ("disks", "regions"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "region_disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("subnetworks", "regions"): {"asset_type": "compute.googleapis.com/Subnetwork", "client_attr": "subnetworks", "get_arg": "subnetwork", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("healthChecks", "regions"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "region_health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
@@ -88,7 +89,6 @@ class ComputeClient(ResourceClient):
         self.instance_templates = compute_v1.InstanceTemplatesClient()
         self.instance_group_managers = compute_v1.InstanceGroupManagersClient()
         self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
-        self.resource_policies = compute_v1.ResourcePoliciesClient()
         self.security_policies = compute_v1.SecurityPoliciesClient()
 
     def supports(self, a): return a.startswith("compute.googleapis.com/")
