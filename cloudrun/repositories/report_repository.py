@@ -2,55 +2,33 @@ from google.cloud import bigquery
 import config
 
 class ReportRepository:
-    """
-    Read-only repository used for governance reporting.
-    All reporting APIs read from immutable BigQuery tables using CTEs and window functions.
-    """
-
+    """Read-only repository used for governance reporting."""
     def __init__(self):
         self.client = bigquery.Client()
         self.dataset = config.BIGQUERY_DATASET
 
     # --- Private Helpers ---
-
     def _scope_filter(self, scope: str, project_id: str | None, column: str = "project_id") -> tuple[str, list]:
-        """Builds a full WHERE clause with explicit table alias."""
         match scope:
-            case "organization":
-                return "", []
+            case "organization": return "", []
             case "project":
-                if not project_id:
-                    raise ValueError("project_id is required for project scope")
-                return (
-                    f"WHERE {column}=@project_id",
-                    [bigquery.ScalarQueryParameter("project_id", "STRING", project_id)],
-                )
-            case _:
-                raise ValueError(f"Unsupported scope '{scope}'")
+                if not project_id: raise ValueError("project_id required")
+                return f"WHERE {column}=@project_id", [bigquery.ScalarQueryParameter("project_id", "STRING", project_id)]
+            case _: raise ValueError(f"Unsupported scope '{scope}'")
 
     def _project_filter(self, scope: str, project_id: str | None, column: str = "project_id") -> tuple[str, list]:
-        """Builds an AND clause for existing WHERE conditions with explicit table alias."""
         match scope:
-            case "organization":
-                return "", []
+            case "organization": return "", []
             case "project":
-                if not project_id:
-                    raise ValueError("project_id is required for project scope")
-                return (
-                    f"AND {column}=@project_id",
-                    [bigquery.ScalarQueryParameter("project_id", "STRING", project_id)],
-                )
-            case _:
-                raise ValueError(f"Unsupported scope '{scope}'")
+                if not project_id: raise ValueError("project_id required")
+                return f"AND {column}=@project_id", [bigquery.ScalarQueryParameter("project_id", "STRING", project_id)]
+            case _: raise ValueError(f"Unsupported scope '{scope}'")
 
     def _limit_parameter(self, limit: int) -> bigquery.ScalarQueryParameter:
         return bigquery.ScalarQueryParameter("limit", "INT64", limit)
 
     def _job(self, query: str, params: list | None = None):
-        return self.client.query(
-            query,
-            job_config=bigquery.QueryJobConfig(query_parameters=params or []),
-        )
+        return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
 
     def _rows(self, job):
         return [dict(row.items()) for row in job.result()]
@@ -59,7 +37,6 @@ class ReportRepository:
         return next(job.result())
 
     # --- Public Methods ---
-
     def executive_summary(self, scope="organization", project_id=None):
         return {
             "estate": self._dashboard_summary(scope, project_id),
@@ -70,13 +47,12 @@ class ReportRepository:
     def _dashboard_summary(self, scope: str, project_id: str | None):
         where_clause, params = self._scope_filter(scope, project_id, "r.project_id")
         comp_where = where_clause.replace("r.project_id", "c.project_id")
-        
         query = f"""
         WITH 
         latest_resources AS (SELECT * FROM `{self.dataset}.resource_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY snapshot_time DESC) = 1),
         latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1),
         resources AS (SELECT COUNT(*) AS total_resources, COUNT(DISTINCT project_id) AS total_projects FROM latest_resources r {where_clause}),
-        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(compliant = FALSE) AS non_compliant_resources FROM latest_compliance c {comp_where}),
+        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(FALSE) AS non_compliant_resources FROM latest_compliance c {comp_where}),
         plans AS (SELECT COUNT(*) AS planned_remediations FROM `{self.dataset}.remediation_plan` {where_clause.replace("r.project_id", "project_id")}),
         latest_execution AS (SELECT status, ROW_NUMBER() OVER(PARTITION BY run_id, resource_name ORDER BY executed_at DESC) as rn FROM `{self.dataset}.remediation_execution` {where_clause.replace("r.project_id", "project_id")}),
         executions AS (SELECT COUNT(*) AS executed_remediations, COUNTIF(status = 'SUCCESS') AS successful_remediations, COUNTIF(status = 'FAILED') AS failed_remediations, COUNTIF(status = 'IN_PROGRESS') AS in_progress_remediations FROM latest_execution WHERE rn = 1)
@@ -92,6 +68,32 @@ class ReportRepository:
             "in_progress_remediations": row.in_progress_remediations, "executed_remediations": row.executed_remediations,
             "successful_remediations": row.successful_remediations, "failed_remediations": row.failed_remediations,
             "success_rate": round((row.successful_remediations / row.executed_remediations) * 100, 2) if row.executed_remediations > 0 else 100,
+        }
+
+    def dashboard(self, scope: str = "organization", project_id: str | None = None, mode: str = "brownfield"):
+        if mode == "greenfield":
+            return {
+                "mode": "greenfield",
+                "executive_summary": {
+                    "estate": self._dashboard_summary(scope, project_id),
+                    "brownfield": self.brownfield_summary(scope, project_id),
+                    "greenfield": self.greenfield_summary(scope, project_id)
+                },
+                "projects": self.greenfield_projects(),
+                "all_projects": [],
+                "resource_types": self.greenfield_resource_types(),
+                "top_non_compliant": [],
+                "recent_activity": self.greenfield_recent_activity()
+            }
+        
+        return {
+            "mode": "brownfield",
+            "executive_summary": self.executive_summary(scope, project_id),
+            "projects": self.project_summary(scope, project_id),
+            "all_projects": self.project_summary("organization", None),
+            "resource_types": self.compliance_breakdown(scope, project_id),
+            "top_non_compliant": self.top_non_compliant(scope, project_id),
+            "recent_activity": self.remediation_runs(scope, project_id, 5),
         }
 
     def resources(self, scope: str = "organization", project_id: str | None = None, limit: int = 100):
@@ -155,18 +157,6 @@ class ReportRepository:
             })
         return results
 
-    def dashboard(self, scope: str = "organization", project_id: str | None = None):
-        return {
-            "executive_summary": self.executive_summary(scope, project_id),
-            "projects": self.project_summary(scope, project_id),
-            "all_projects": self.project_summary("organization", None),
-            "resource_types": self.compliance_breakdown(scope, project_id),
-            "top_non_compliant": self.top_non_compliant(scope, project_id),
-            "recent_runs": self.remediation_runs(scope, project_id, 5),
-        }
-
-    # --- Remediation Methods (Remaining as standard) ---
-
     def remediation_runs(self, scope: str = "organization", project_id: str | None = None, limit: int = 100):
         where_clause, params = self._scope_filter(scope, project_id, "project_id")
         query = f"""
@@ -185,51 +175,44 @@ class ReportRepository:
             results.append(data)
         return results
 
-    def remediation_run_summary(self, run_id: str):
-        query = f"""
-        WITH planned AS (SELECT run_id, COUNT(*) AS planned, MIN(created_at) AS started FROM `{self.dataset}.remediation_plan` WHERE run_id=@run_id GROUP BY run_id),
-        latest_execution AS (SELECT run_id, status, executed_at, ROW_NUMBER() OVER(PARTITION BY run_id, resource_name ORDER BY executed_at DESC) as rn FROM `{self.dataset}.remediation_execution` WHERE run_id=@run_id),
-        execution AS (SELECT run_id, COUNTIF(status='SUCCESS') AS completed, COUNTIF(status='FAILED') AS failed, COUNTIF(status='IN_PROGRESS') AS in_progress, MAX(executed_at) AS finished FROM latest_execution WHERE rn = 1 GROUP BY run_id)
-        SELECT p.planned, e.completed, e.failed, e.in_progress, p.started, e.finished
-        FROM planned p LEFT JOIN execution e ON p.run_id = e.run_id
-        """
-        params = [bigquery.ScalarQueryParameter("run_id", "STRING", run_id)]
-        row = self._first(self._job(query, params))
-        total = row.planned
-        return {
-            "run_id": run_id, "planned": total, "completed": row.completed or 0, "failed": row.failed or 0,
-            "remaining": total - ((row.completed or 0) + (row.failed or 0) + (row.in_progress or 0)),
-            "in_progress": row.in_progress or 0, "success_rate": round((row.completed or 0) * 100 / total, 2) if total else 100,
-            "started": row.started, "finished": row.finished,
-        }
-
-    def execution_history(self, run_id: str):
-        query = f"SELECT execution_id, run_id, project_id, asset_type, resource_name, status, error_message, executed_at FROM `{self.dataset}.remediation_execution` WHERE run_id=@run_id ORDER BY executed_at"
-        return self._rows(self._job(query, [bigquery.ScalarQueryParameter("run_id", "STRING", run_id)]))
-
-    def metrics(self, scope: str = "organization", project_id: str | None = None):
-        where_clause, params = self._scope_filter(scope, project_id, "project_id")
-        query = f"""
-        WITH latest_execution AS (SELECT status, executed_at, ROW_NUMBER() OVER(PARTITION BY run_id, resource_name ORDER BY executed_at DESC) as rn FROM `{self.dataset}.remediation_execution` {where_clause})
-        SELECT DATE(executed_at) AS day, COUNT(*) AS total, COUNTIF(status='SUCCESS') AS successful, COUNTIF(status='FAILED') AS failed
-        FROM latest_execution WHERE rn = 1 GROUP BY day ORDER BY day
-        """
-        return self._rows(self._job(query, params))
-
+    # --- Greenfield Methods ---
     def greenfield_summary(self, scope: str = "organization", project_id: str | None = None):
         where_clause, params = self._scope_filter(scope, project_id, "project_id")
         prefix = "WHERE" if not where_clause else "AND"
         query = f"""
-        SELECT COUNT(*) AS total_events, COUNTIF(status='SUCCESS') AS remediated, COUNTIF(status='COMPLIANT') AS compliant, 
-        COUNTIF(status='FAILED') AS failed, COUNTIF(status='NOT_FOUND') AS not_found, COUNTIF(status='UNSUPPORTED') AS unsupported, 
-        AVG(duration_ms) AS average_duration_ms FROM `{self.dataset}.remediation_execution` {where_clause} {prefix} execution_mode='GREENFIELD'
+        SELECT 
+            COUNT(*) AS total_events,
+            COUNTIF(status='SUCCESS') AS successful,
+            COUNTIF(status='FAILED') AS failed,
+            COUNTIF(status='UNSUPPORTED') AS unsupported,
+            AVG(duration_ms) AS average_duration_ms,
+            MAX(executed_at) AS last_event
+        FROM `{self.dataset}.remediation_execution`
+        {where_clause} {prefix} execution_mode='GREENFIELD'
         """
         row = self._first(self._job(query, params))
         return {
-            "total_events": row.total_events, "remediated": row.remediated, "compliant": row.compliant,
-            "failed": row.failed, "not_found": row.not_found, "unsupported": row.unsupported, "average_duration_ms": round(row.average_duration_ms or 0, 2)
+            "total_events": row.total_events,
+            "successful": row.successful,
+            "failed": row.failed,
+            "unsupported": row.unsupported,
+            "average_duration_ms": round(row.average_duration_ms or 0, 2),
+            "last_event": row.last_event
         }
 
+    def greenfield_projects(self):
+        query = f"""SELECT project_id, COUNT(*) AS total_events, COUNTIF(status='SUCCESS') AS successful, COUNTIF(status='FAILED') AS failed FROM `{self.dataset}.remediation_execution` WHERE execution_mode='GREENFIELD' GROUP BY project_id ORDER BY total_events DESC"""
+        return self._rows(self._job(query))
+
+    def greenfield_resource_types(self):
+        query = f"""SELECT asset_type, COUNT(*) AS total_events, COUNTIF(status='SUCCESS') AS successful, COUNTIF(status='FAILED') AS failed FROM `{self.dataset}.remediation_execution` WHERE execution_mode='GREENFIELD' GROUP BY asset_type ORDER BY total_events DESC"""
+        return self._rows(self._job(query))
+
+    def greenfield_recent_activity(self):
+        query = f"""SELECT executed_at, project_id, asset_type, resource_name, status, duration_ms FROM `{self.dataset}.remediation_execution` WHERE execution_mode='GREENFIELD' ORDER BY executed_at DESC LIMIT 20"""
+        return self._rows(self._job(query))
+
+    # --- Brownfield Methods ---
     def brownfield_summary(self, scope: str = "organization", project_id: str | None = None):
         where_clause, params = self._scope_filter(scope, project_id, "project_id")
         prefix = "WHERE" if not where_clause else "AND"

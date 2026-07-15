@@ -47,10 +47,17 @@ async function loadDashboard() {
         renderGreenfield(data.executive_summary.greenfield);
         
         // Render Tables
-        renderProjects(data.projects);
-        renderResourceTypes(data.resource_types);
-        renderRecentRuns(data.recent_runs);
-        renderNonCompliant(data.top_non_compliant);
+        if (data.mode === "greenfield") {
+            renderGreenfieldProjects(data.projects);
+            renderGreenfieldResourceTypes(data.resource_types);
+            renderGreenfieldRecentActivity(data.recent_activity);
+            document.getElementById("non-compliant-container").innerHTML = "";
+        } else {
+            renderProjects(data.projects);
+            renderResourceTypes(data.resource_types);
+            renderRecentRuns(data.recent_activity);
+            renderNonCompliant(data.top_non_compliant);
+        }
 
         // Update project list logic
         if (data.all_projects) {
@@ -157,10 +164,11 @@ function renderGreenfield(data) {
             <h3>Greenfield</h3>
             <table class="summary-table">
                 <tr><td>Events</td><td>${formatNumber(data.total_events)}</td></tr>
-                <tr><td>Remediated</td><td>${formatNumber(data.remediated)}</td></tr>
-                <tr><td>Compliant</td><td>${formatNumber(data.compliant)}</td></tr>
+                <tr><td>Successful</td><td>${formatNumber(data.successful)}</td></tr>
                 <tr><td>Failed</td><td>${formatNumber(data.failed)}</td></tr>
-                <tr><td>Avg Latency</td><td>${data.average_duration_ms} ms</td></tr>
+                <tr><td>Unsupported</td><td>${formatNumber(data.unsupported)}</td></tr>
+                <tr><td>Average Processing Time</td><td>${data.average_duration_ms} ms</td></tr>
+                <tr><td>Last Event</td><td>${formatDate(data.last_event)}</td></tr>
             </table>
         </div>`;
 }
@@ -191,6 +199,37 @@ function renderRecentRuns(runs) {
     }
     container.innerHTML = `<table class="data-table"><thead><tr><th>Run ID</th><th>Planned</th><th>Completed</th><th>Failed</th><th>Remaining</th><th>Success</th><th>Started</th></tr></thead><tbody>${runs.map(r => `<tr><td>${shortRunId(r.run_id)}</td><td>${formatNumber(r.planned)}</td><td>${formatNumber(r.completed)}</td><td>${formatNumber(r.failed)}</td><td>${formatNumber(r.remaining)}</td><td>${r.success_rate}%</td><td>${formatDate(r.started)}</td></tr>`).join("")}</tbody></table>`;
 }
+
+// --- Greenfield Specific Renderers ---
+
+function renderGreenfieldProjects(projects) {
+    const container = document.getElementById("projects-container");
+    if (!projects || projects.length === 0) {
+        container.innerHTML = '<div class="card">No projects found.</div>';
+        return;
+    }
+    container.innerHTML = `<table class="data-table"><thead><tr><th>Project</th><th>Events</th><th>Successful</th><th>Failed</th></tr></thead><tbody>${projects.map(p => `<tr><td>${p.project_id}</td><td>${formatNumber(p.total_events)}</td><td>${formatNumber(p.successful)}</td><td>${formatNumber(p.failed)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function renderGreenfieldResourceTypes(resources) {
+    const container = document.getElementById("resource-types-container");
+    if (!resources || resources.length === 0) {
+        container.innerHTML = '<div class="card">No resource types found.</div>';
+        return;
+    }
+    container.innerHTML = `<table class="data-table"><thead><tr><th>Resource Type</th><th>Events</th><th>Successful</th><th>Failed</th></tr></thead><tbody>${resources.map(r => `<tr><td>${formatAssetType(r.asset_type)}</td><td>${formatNumber(r.total_events)}</td><td>${formatNumber(r.successful)}</td><td>${formatNumber(r.failed)}</td></tr>`).join("")}</tbody></table>`;
+}
+
+function renderGreenfieldRecentActivity(activity) {
+    const container = document.getElementById("recent-runs-container");
+    if (!activity || activity.length === 0) {
+        container.innerHTML = '<div class="card">No recent activity found.</div>';
+        return;
+    }
+    container.innerHTML = `<table class="data-table"><thead><tr><th>Time</th><th>Project</th><th>Resource</th><th>Status</th><th>Duration</th></tr></thead><tbody>${activity.map(a => `<tr><td>${formatDate(a.executed_at)}</td><td>${a.project_id}</td><td>${shortResource(a.resource_name)}</td><td>${a.status}</td><td>${a.duration_ms} ms</td></tr>`).join("")}</tbody></table>`;
+}
+
+// --- End Greenfield ---
 
 function renderNonCompliant(resources) {
     const container = document.getElementById("non-compliant-container");
