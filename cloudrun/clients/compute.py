@@ -1,4 +1,5 @@
 from google.cloud import compute_v1
+from google.api_core.exceptions import PreconditionFailed
 import logging
 from clients.base import ResourceClient
 from models.resource import Resource
@@ -24,8 +25,10 @@ class ComputeClient(ResourceClient):
         ("sslCertificates", "regions"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "region_ssl_certificates", "get_arg": "ssl_certificate", "set_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
         ("targetHttpsProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "region_target_https_proxies", "get_arg": "target_https_proxy", "set_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
         ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_target_http_proxies_request_resource"},
+        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_instance_groups_set_labels_request_resource"},
         ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
         
         # Global Resources
         ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
@@ -45,24 +48,37 @@ class ComputeClient(ResourceClient):
     SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls")}
 
     def __init__(self):
+        # Operations Clients
         self.zone_operations = compute_v1.ZoneOperationsClient()
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
+        
+        # Compute Client Suite
         self.instances = compute_v1.InstancesClient()
         self.disks = compute_v1.DisksClient()
         self.region_disks = compute_v1.RegionDisksClient()
         self.snapshots = compute_v1.SnapshotsClient()
         self.images = compute_v1.ImagesClient()
         self.machine_images = compute_v1.MachineImagesClient()
+        self.networks = compute_v1.NetworksClient()
         self.subnetworks = compute_v1.SubnetworksClient()
+        self.firewalls = compute_v1.FirewallsClient()
         self.addresses = compute_v1.AddressesClient()
         self.global_addresses = compute_v1.GlobalAddressesClient()
         self.forwarding_rules = compute_v1.ForwardingRulesClient()
         self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient()
+        self.routers = compute_v1.RoutersClient()
+        self.network_attachments = compute_v1.NetworkAttachmentsClient()
+        self.service_attachments = compute_v1.ServiceAttachmentsClient()
+        self.vpn_gateways = compute_v1.VpnGatewaysClient()
         self.vpn_tunnels = compute_v1.VpnTunnelsClient()
+        self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
         self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
+        self.packet_mirrorings = compute_v1.PacketMirroringsClient()
+        self.target_pools = compute_v1.TargetPoolsClient()
         self.ssl_certificates = compute_v1.SslCertificatesClient()
         self.region_ssl_certificates = compute_v1.RegionSslCertificatesClient()
+        self.ssl_policies = compute_v1.SslPoliciesClient()
         self.target_http_proxies = compute_v1.TargetHttpProxiesClient()
         self.region_target_http_proxies = compute_v1.RegionTargetHttpProxiesClient()
         self.target_https_proxies = compute_v1.TargetHttpsProxiesClient()
@@ -75,56 +91,109 @@ class ComputeClient(ResourceClient):
         self.region_health_checks = compute_v1.RegionHealthChecksClient()
         self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
         self.instance_groups = compute_v1.InstanceGroupsClient()
+        self.region_instance_groups = compute_v1.RegionInstanceGroupsClient()
+        self.instance_templates = compute_v1.InstanceTemplatesClient()
+        self.instance_group_managers = compute_v1.InstanceGroupManagersClient()
+        self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
+        self.resource_policies = compute_v1.ResourcePoliciesClient()
+        self.security_policies = compute_v1.SecurityPoliciesClient()
 
-    def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
+    def supports(self, a): 
+        return a.startswith("compute.googleapis.com/")
+    
+    def supports_labels(self, a): 
+        return a in self.SUPPORTED_LABEL_TYPES
 
     def _parse_resource_url(self, u):
         if u.startswith("//compute.googleapis.com/"): u = u[len("//compute.googleapis.com/"):]
         p = u.strip("/").split("/")
         proj, scope = p[1], p[2]
-        if scope in ("zones", "regions"): return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
+        if scope in ("zones", "regions"): 
+            return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
         return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
 
-    def apply_labels(self, res, labels: dict):
+    def get(self, n: str) -> Resource:
+        info = self._parse_resource_url(n)
+        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        if not entry:
+            return Resource(asset_type="compute.googleapis.com/" + info["resource_type"][:-1].capitalize(), name=n, project=info["project"], location=info["scope_value"], labels={})
+            
+        client = getattr(self, entry["client_attr"])
+        kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+        if info["scope_type"] in ("zones", "regions"): 
+            kwargs[info["scope_type"][:-1]] = info["scope_value"]
+        
+        res = client.get(**kwargs)
+        return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
+
+    def labels(self, r: Resource):
+        try:
+            if not self.supports_labels(r.asset_type): return None
+            return self.get(r.name).labels
+        except Exception as e:
+            logger.exception("Failed to fetch labels: %s", e)
+            return None
+
+    def apply_labels(self, res: Resource, labels: dict):
         info = self._parse_resource_url(res.name)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        if not entry: return True
-        
+        if not entry or not entry.get("set_labels_request_cls"): 
+            return True
+            
         client = getattr(self, entry["client_attr"])
         
-        # 1. Fetch existing labels and fingerprint
         get_kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-        if info["scope_type"] in ("zones", "regions"): get_kwargs[info["scope_type"][:-1]] = info["scope_value"]
-        current_res = client.get(**get_kwargs)
-        
-        # 2. Merge labels
-        new_labels = dict(getattr(current_res, "labels", {}))
-        if config.PRESERVE_EXISTING_LABELS:
-            for k, v in labels.items():
-                if k not in new_labels: new_labels[k] = v
-        else: new_labels.update(labels)
-        
-        if dict(getattr(current_res, "labels", {})) == new_labels: return True
-
-        # 3. Construct the SetLabelsRequest object
-        req_obj = entry["set_labels_request_cls"](
-            labels=new_labels, 
-            label_fingerprint=current_res.label_fingerprint
-        )
-        
-        # 4. Perform update using keyword arguments (Bypasses ValueError)
-        set_kwargs = {
-            "project": info["project"],
-            entry["set_arg"]: info["name"],
-            entry["set_labels_arg_name"]: req_obj
-        }
         if info["scope_type"] in ("zones", "regions"): 
-            set_kwargs[info["scope_type"][:-1]] = info["scope_value"]
+            get_kwargs[info["scope_type"][:-1]] = info["scope_value"]
+
+        def _attempt_update():
+            # 1. Fetch current resource state for fingerprint
+            current_res = client.get(**get_kwargs)
             
-        op = client.set_labels(**set_kwargs)
-        
-        # 5. Wait for operation
-        if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
-        elif info["scope_type"] == "regions": self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
-        else: self.global_operations.wait(project=info["project"], operation=op.name)
+            # 2. Merge labels
+            new_labels = dict(getattr(current_res, "labels", {}))
+            if config.PRESERVE_EXISTING_LABELS:
+                for k, v in labels.items():
+                    if k not in new_labels: 
+                        new_labels[k] = v
+            else: 
+                new_labels.update(labels)
+            
+            # No changes needed
+            if dict(getattr(current_res, "labels", {})) == new_labels: 
+                return True
+
+            # 3. Construct the SetLabelsRequest object internally
+            req_obj = entry["set_labels_request_cls"](
+                labels=new_labels, 
+                label_fingerprint=current_res.label_fingerprint
+            )
+            
+            # 4. Perform update using dynamic keyword arguments safely
+            set_kwargs = {
+                "project": info["project"],
+                entry["set_arg"]: info["name"],
+                entry["set_labels_arg_name"]: req_obj
+            }
+            if info["scope_type"] in ("zones", "regions"): 
+                set_kwargs[info["scope_type"][:-1]] = info["scope_value"]
+                
+            return client.set_labels(**set_kwargs)
+
+        try:
+            op = _attempt_update()
+        except PreconditionFailed:
+            # Fingerprint collision in brownfield environment, fetch latest and retry once
+            logger.warning(f"Fingerprint mismatch on {res.name}, retrying update...")
+            op = _attempt_update()
+
+        # 5. Wait for the operation to finalize
+        if op and op is not True:
+            if info["scope_type"] == "zones": 
+                self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
+            elif info["scope_type"] == "regions": 
+                self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
+            else: 
+                self.global_operations.wait(project=info["project"], operation=op.name)
+                
         return True
