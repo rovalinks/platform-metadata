@@ -146,13 +146,29 @@ class ComputeClient(ResourceClient):
         except PreconditionFailed: return run()
         
     def apply_labels(self, res, labels: dict):
-        info = self._parse_resource_url(res.name); entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        info = self._parse_resource_url(res.name)
+        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
         if not entry or not entry.get("set_labels_request_cls"): return True
-        client = getattr(self, entry["client_attr"]); meth = getattr(client, entry["set_labels_method"])
+        client = getattr(self, entry["client_attr"])
+        meth = getattr(client, entry["set_labels_method"])
         scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
-        def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
-        # FIXED: Changed 'resource': info['name'] to use entry['get_arg']
-        def set_r(req): kwargs = {"project": info["project"], entry["get_arg"]: info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
+        
+        def get_r(): 
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            kwargs.update(scope_arg)
+            return client.get(**kwargs)
+            
+        def set_r(req): 
+            # Build request dictionary instead of using **kwargs
+            request_data = {
+                "project": info["project"],
+                entry["get_arg"]: info["name"],
+                entry["set_labels_arg_name"]: req
+            }
+            request_data.update(scope_arg)
+            # Use 'request' keyword to be safe with auto-generated client methods
+            return meth(request=request_data)
+            
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
         if op and op is not True:
             if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
