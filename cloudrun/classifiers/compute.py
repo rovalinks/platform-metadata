@@ -46,7 +46,6 @@ class ComputeClassifier(ResourceClassifier):
     def _resolve_key(self, event: AuditLogEvent):
         method = event.method_name.replace("compute.", "").replace("beta.", "").replace("v1.", "")
         
-        # Explicit mapping for your logs
         mapping = {
             "regionDisks.insert": ("disks", "regions"),
             "disks.insert": ("disks", "zones"),
@@ -57,7 +56,6 @@ class ComputeClassifier(ResourceClassifier):
         if method in mapping:
             return mapping[method]
             
-        # Fallback for others
         match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', method)
         if match:
             collection = (match.group(1)[0].lower() + match.group(1)[1:]) + "s"
@@ -66,7 +64,7 @@ class ComputeClassifier(ResourceClassifier):
             elif "/regions/" in event.resource_name: scope = "regions"
             return (collection, scope) if (collection, scope) in self.SERVICE_REGISTRY else None
             
-    return None
+        return None
 
     def supports(self, event: AuditLogEvent) -> bool:
         return event.service_name == self.SERVICE and self._resolve_key(event) is not None
