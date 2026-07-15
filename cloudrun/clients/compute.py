@@ -48,6 +48,7 @@ class ComputeClient(ResourceClient):
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
         self.instances = compute_v1.InstancesClient()
+        self.resource_policies = compute_v1.ResourcePoliciesClient()
         self.disks = compute_v1.DisksClient()
         self.region_disks = compute_v1.RegionDisksClient()
         self.snapshots = compute_v1.SnapshotsClient()
