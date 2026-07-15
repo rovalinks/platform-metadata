@@ -9,51 +9,44 @@ logger = logging.getLogger(__name__)
 
 class ComputeClient(ResourceClient):
     REGISTRY = {
-        # Zonal Resources
-        ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_arg_name": "instances_set_labels_request_resource"},
-        ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_arg_name": "zone_set_labels_request_resource"},
-        ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_arg_name": "zone_set_labels_request_resource"},
-        ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_arg_name": "zone_set_labels_request_resource"},
-        
-        # Regional Resources
-        ("disks", "regions"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "region_disks", "get_arg": "disk", "set_arg": "disk", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("subnetworks", "regions"): {"asset_type": "compute.googleapis.com/Subnetwork", "client_attr": "subnetworks", "get_arg": "subnetwork", "set_arg": "subnetwork", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("healthChecks", "regions"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "region_health_checks", "get_arg": "health_check", "set_arg": "health_check", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("backendServices", "regions"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "region_backend_services", "get_arg": "backend_service", "set_arg": "backend_service", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("sslCertificates", "regions"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "region_ssl_certificates", "get_arg": "ssl_certificate", "set_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("targetHttpsProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "region_target_https_proxies", "get_arg": "target_https_proxy", "set_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_target_http_proxies_request_resource"},
-        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_instance_groups_set_labels_request_resource"},
-        ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_arg_name": "region_set_labels_request_resource"},
-        
-        # Global Resources
-        ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("backendServices", "global"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "backend_services", "get_arg": "backend_service", "set_arg": "backend_service", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_arg": "address", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("sslCertificates", "global"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "ssl_certificates", "get_arg": "ssl_certificate", "set_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("targetHttpsProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "target_https_proxies", "get_arg": "target_https_proxy", "set_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("urlMaps", "global"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "url_maps", "get_arg": "url_map", "set_arg": "url_map", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("snapshots", "global"): {"asset_type": "compute.googleapis.com/Snapshot", "client_attr": "snapshots", "get_arg": "snapshot", "set_arg": "snapshot", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("targetHttpProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "target_http_proxies", "get_arg": "target_http_proxy", "set_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("machineImages", "global"): {"asset_type": "compute.googleapis.com/MachineImage", "client_attr": "machine_images", "get_arg": "machine_image", "set_arg": "machine_image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_arg": "image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
-        ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_arg": "external_vpn_gateway", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
+        ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
+        ("disks", "regions"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "region_disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("subnetworks", "regions"): {"asset_type": "compute.googleapis.com/Subnetwork", "client_attr": "subnetworks", "get_arg": "subnetwork", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("healthChecks", "regions"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "region_health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("backendServices", "regions"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "region_backend_services", "get_arg": "backend_service", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("sslCertificates", "regions"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "region_ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetHttpsProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "region_target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("backendServices", "global"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "backend_services", "get_arg": "backend_service", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("sslCertificates", "global"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("targetHttpsProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("urlMaps", "global"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("snapshots", "global"): {"asset_type": "compute.googleapis.com/Snapshot", "client_attr": "snapshots", "get_arg": "snapshot", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("targetHttpProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("machineImages", "global"): {"asset_type": "compute.googleapis.com/MachineImage", "client_attr": "machine_images", "get_arg": "machine_image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
-
-    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls")}
-
+    
+    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta["set_labels_request_cls"] is not None}
+    
     def __init__(self):
-        # Operations Clients
         self.zone_operations = compute_v1.ZoneOperationsClient()
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
-        
-        # Compute Client Suite
         self.instances = compute_v1.InstancesClient()
         self.disks = compute_v1.DisksClient()
         self.region_disks = compute_v1.RegionDisksClient()
@@ -66,7 +59,6 @@ class ComputeClient(ResourceClient):
         self.addresses = compute_v1.AddressesClient()
         self.global_addresses = compute_v1.GlobalAddressesClient()
         self.forwarding_rules = compute_v1.ForwardingRulesClient()
-        self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient()
         self.routers = compute_v1.RoutersClient()
         self.network_attachments = compute_v1.NetworkAttachmentsClient()
         self.service_attachments = compute_v1.ServiceAttachmentsClient()
@@ -98,102 +90,61 @@ class ComputeClient(ResourceClient):
         self.resource_policies = compute_v1.ResourcePoliciesClient()
         self.security_policies = compute_v1.SecurityPoliciesClient()
 
-    def supports(self, a): 
-        return a.startswith("compute.googleapis.com/")
+    def supports(self, a): return a.startswith("compute.googleapis.com/")
     
-    def supports_labels(self, a): 
-        return a in self.SUPPORTED_LABEL_TYPES
-
+    def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
+    
     def _parse_resource_url(self, u):
         if u.startswith("//compute.googleapis.com/"): u = u[len("//compute.googleapis.com/"):]
         p = u.strip("/").split("/")
         proj, scope = p[1], p[2]
-        if scope in ("zones", "regions"): 
-            return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
+        if scope in ("zones", "regions"): return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
         return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
-
-    def get(self, n: str) -> Resource:
-        info = self._parse_resource_url(n)
-        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        if not entry:
-            return Resource(asset_type="compute.googleapis.com/" + info["resource_type"][:-1].capitalize(), name=n, project=info["project"], location=info["scope_value"], labels={})
-            
-        client = getattr(self, entry["client_attr"])
-        kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-        if info["scope_type"] in ("zones", "regions"): 
-            kwargs[info["scope_type"][:-1]] = info["scope_value"]
-        
-        res = client.get(**kwargs)
-        return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
-
+    
     def labels(self, r: Resource):
         try:
             if not self.supports_labels(r.asset_type): return None
-            return self.get(r.name).labels
+            info = self._parse_resource_url(r.name)
+            entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+            client = getattr(self, entry["client_attr"])
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+            return dict(getattr(client.get(**kwargs), "labels", {}))
         except Exception as e:
-            logger.exception("Failed to fetch labels: %s", e)
-            return None
-
-    def apply_labels(self, res: Resource, labels: dict):
-        info = self._parse_resource_url(res.name)
+            logger.exception("Failed to fetch labels: %s", e); return None
+            
+    def get(self, n: str) -> Resource:
+        info = self._parse_resource_url(n)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        if not entry or not entry.get("set_labels_request_cls"): 
-            return True
-            
         client = getattr(self, entry["client_attr"])
+        kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+        if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+        res = client.get(**kwargs)
+        return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
         
-        get_kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-        if info["scope_type"] in ("zones", "regions"): 
-            get_kwargs[info["scope_type"][:-1]] = info["scope_value"]
-
-        def _attempt_update():
-            # 1. Fetch current resource state for fingerprint
-            current_res = client.get(**get_kwargs)
-            
-            # 2. Merge labels
-            new_labels = dict(getattr(current_res, "labels", {}))
+    def _apply_labels_generic(self, g, s, req_cls, labels):
+        def run():
+            res = g(); ex = dict(getattr(res, "labels", {})); m = ex.copy()
             if config.PRESERVE_EXISTING_LABELS:
                 for k, v in labels.items():
-                    if k not in new_labels: 
-                        new_labels[k] = v
-            else: 
-                new_labels.update(labels)
-            
-            # No changes needed
-            if dict(getattr(current_res, "labels", {})) == new_labels: 
-                return True
-
-            # 3. Construct the SetLabelsRequest object internally
-            req_obj = entry["set_labels_request_cls"](
-                labels=new_labels, 
-                label_fingerprint=current_res.label_fingerprint
-            )
-            
-            # 4. Perform update using dynamic keyword arguments safely
-            set_kwargs = {
-                "project": info["project"],
-                entry["set_arg"]: info["name"],
-                entry["set_labels_arg_name"]: req_obj
-            }
-            if info["scope_type"] in ("zones", "regions"): 
-                set_kwargs[info["scope_type"][:-1]] = info["scope_value"]
-                
-            return client.set_labels(**set_kwargs)
-
-        try:
-            op = _attempt_update()
-        except PreconditionFailed:
-            # Fingerprint collision in brownfield environment, fetch latest and retry once
-            logger.warning(f"Fingerprint mismatch on {res.name}, retrying update...")
-            op = _attempt_update()
-
-        # 5. Wait for the operation to finalize
+                    if k not in m: m[k] = v
+            else: m.update(labels)
+            if m == ex: return True
+            return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
+        try: return run()
+        except PreconditionFailed: return run()
+        
+    def apply_labels(self, res, labels: dict):
+        info = self._parse_resource_url(res.name); entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        if not entry or not entry.get("set_labels_request_cls"): return True
+        client = getattr(self, entry["client_attr"]); meth = getattr(client, entry["set_labels_method"])
+        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
+        def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
+        # Fix: Use 'resource' instead of the get_arg to prevent TypeError
+        def set_r(req): kwargs = {"project": info["project"], "resource": info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
+        op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
         if op and op is not True:
-            if info["scope_type"] == "zones": 
-                self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
-            elif info["scope_type"] == "regions": 
-                self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
-            else: 
-                self.global_operations.wait(project=info["project"], operation=op.name)
-                
+            if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
+            elif info["scope_type"] == "regions": self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
+            else: self.global_operations.wait(project=info["project"], operation=op.name)
         return True
