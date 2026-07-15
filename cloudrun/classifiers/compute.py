@@ -11,6 +11,7 @@ class ComputeClassifier(ResourceClassifier):
 
     SERVICE_REGISTRY = {
         ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
+        ("resourcePolicies", "regions"): {"asset_type": "compute.googleapis.com/ResourcePolicy", "client_attr": "resource_policies", "get_arg": "resource_policy", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -43,27 +44,29 @@ class ComputeClassifier(ResourceClassifier):
     }
 
     def _resolve_key(self, event: AuditLogEvent):
-        # 1. Normalize method name
         method = event.method_name.replace("compute.", "").replace("beta.", "").replace("v1.", "")
         
-        # 2. Direct mapping for regional/zonal disks
-        if "regionDisks.insert" in method:
-            return ("disks", "regions")
-        if "disks.insert" in method:
-            return ("disks", "zones")
+        # Explicit mapping for your logs
+        mapping = {
+            "regionDisks.insert": ("disks", "regions"),
+            "disks.insert": ("disks", "zones"),
+            "instances.insert": ("instances", "zones"),
+            "resourcePolicies.insert": ("resourcePolicies", "regions")
+        }
+        
+        if method in mapping:
+            return mapping[method]
             
-        # 3. Fallback regex for other insert methods
+        # Fallback for others
         match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', method)
         if match:
             collection = (match.group(1)[0].lower() + match.group(1)[1:]) + "s"
             scope = "global"
             if "/zones/" in event.resource_name: scope = "zones"
             elif "/regions/" in event.resource_name: scope = "regions"
-                
-            key = (collection, scope)
-            return key if key in self.SERVICE_REGISTRY else None
+            return (collection, scope) if (collection, scope) in self.SERVICE_REGISTRY else None
             
-        return None
+    return None
 
     def supports(self, event: AuditLogEvent) -> bool:
         return event.service_name == self.SERVICE and self._resolve_key(event) is not None
