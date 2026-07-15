@@ -9,7 +9,6 @@ class ComputeClassifier(ResourceClassifier):
 
     SERVICE = "compute.googleapis.com"
 
-    # Registry remains the same
     SERVICE_REGISTRY = {
         ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -44,16 +43,18 @@ class ComputeClassifier(ResourceClassifier):
     }
 
     def _resolve_key(self, event: AuditLogEvent):
-        # 1. Normalize method
-        normalized = self.normalize_method(event.method_name).replace("compute.", "")
+        # 1. Normalize method and strip API version noise (e.g., 'beta.', 'v1.') and 'compute.'
+        method = self.normalize_method(event.method_name)
+        clean_method = method.replace("compute.", "").replace("beta.", "").replace("v1.", "")
         
-        # 2. Specific override for regionDisks (avoids regex ambiguity)
-        if "regionDisks.insert" in normalized:
+        # 2. Specific overrides
+        if "regionDisks.insert" in clean_method:
             return ("disks", "regions")
+        if "disks.insert" in clean_method:
+            return ("disks", "zones")
             
-        # 3. Regex for others: extract collection from e.g. "disks.insert" or "regionDisks.insert"
-        # Using a pattern that avoids capturing the scope prefix as part of the collection
-        match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', normalized)
+        # 3. Regex for others: extract collection from e.g. "disks.insert"
+        match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', clean_method)
         if match:
             collection_camel = match.group(1)
             # Camel case to plural snake_case
