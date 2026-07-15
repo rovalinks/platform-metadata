@@ -1,44 +1,200 @@
 {% extends "base.html" %}
-{% block title %}Dashboard{% endblock %}
+{% block title %}Metadata Governance Dashboard{% endblock %}
+
 {% block content %}
 
-<h2>Metadata Governance Dashboard</h2>
-
-<div id="loading" class="loading hidden">Loading dashboard...</div>
-
-<div class="toolbar">
-    <label>Scope</label>
-    <select id="scope">
-        <option value="organization">Organization</option>
-        <option value="project">Project</option>
-    </select>
-    <label>Project</label>
-    <select id="project" disabled></select>
-    <button id="refresh">Refresh</button>
-    <span id="refresh-timer"></span>
-    <span id="last-updated"></span>
+<div id="loading" class="loading hidden">
+    Loading dashboard...
 </div>
 
-<!-- Executive Summary Section -->
-<div id="summary-cards" class="card-grid"></div>
-<div class="card-grid">
-    <div id="brownfield-card"></div>
-    <div id="greenfield-card"></div>
+<div class="dashboard-header">
+
+    <div>
+        <h2 class="dashboard-title">
+            Metadata Governance Dashboard
+        </h2>
+    </div>
+
+    <div class="dashboard-meta">
+
+        <div class="toolbar">
+
+            <div class="toolbar-group">
+
+                <label for="scope">
+                    Scope
+                </label>
+
+                <select id="scope">
+                    <option value="organization">
+                        Organization
+                    </option>
+                    <option value="project">
+                        Project
+                    </option>
+                </select>
+
+            </div>
+
+            <div class="toolbar-group">
+
+                <label for="project">
+                    Project
+                </label>
+
+                <select id="project" disabled>
+                    <option value="">
+                        All Projects
+                    </option>
+                </select>
+
+            </div>
+
+            <button id="refresh">
+                Refresh
+            </button>
+
+        </div>
+
+        <div class="dashboard-status">
+
+            <span id="refresh-timer"></span>
+
+            <span id="last-updated">
+                Last Updated -
+            </span>
+
+        </div>
+
+    </div>
+
 </div>
 
-<!-- Table Sections -->
-<h3>Projects</h3>
-<div id="projects-container"></div>
+<!-- ===================================================== -->
+<!-- Executive Summary -->
+<!-- ===================================================== -->
 
-<h3>Resource Types</h3>
-<div id="resource-types-container"></div>
+<section class="summary-section">
 
-<h3>Recent Runs</h3>
-<div id="recent-runs-container"></div>
+    <div
+        id="summary-cards"
+        class="summary-grid">
+    </div>
 
-<h3>Top Non-Compliant Resources</h3>
-<div id="non-compliant-container"></div>
+</section>
 
-<footer class="footer">Enterprise Metadata Governance Platform</footer>
+<!-- ===================================================== -->
+<!-- Brownfield / Greenfield -->
+<!-- ===================================================== -->
+
+<section class="remediation-grid">
+
+    <div
+        id="brownfield-card"
+        class="summary-panel">
+    </div>
+
+    <div
+        id="greenfield-card"
+        class="summary-panel">
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- Projects / Resource Types -->
+<!-- ===================================================== -->
+
+<section class="content-grid">
+
+    <div class="panel">
+
+        <div class="panel-header">
+
+            <div class="panel-title">
+                Projects
+            </div>
+
+        </div>
+
+        <div
+            id="projects-container"
+            class="panel-body">
+        </div>
+
+    </div>
+
+    <div class="panel">
+
+        <div class="panel-header">
+
+            <div class="panel-title">
+                Resource Types
+            </div>
+
+        </div>
+
+        <div
+            id="resource-types-container"
+            class="panel-body">
+        </div>
+
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- Recent Activity -->
+<!-- ===================================================== -->
+
+<section class="panel">
+
+    <div class="panel-header">
+
+        <div class="panel-title">
+
+            Recent Activity
+
+        </div>
+
+    </div>
+
+    <div
+        id="recent-runs-container"
+        class="panel-body">
+    </div>
+
+</section>
+
+<!-- ===================================================== -->
+<!-- Non-Compliant -->
+<!-- ===================================================== -->
+
+<section
+    id="non-compliant-panel"
+    class="panel">
+
+    <div class="panel-header">
+
+        <div class="panel-title">
+
+            Top Non-Compliant Resources
+
+        </div>
+
+    </div>
+
+    <div
+        id="non-compliant-container"
+        class="panel-body">
+    </div>
+
+</section>
+
+<footer class="dashboard-footer">
+
+    Enterprise Metadata Governance Platform
+
+</footer>
 
 {% endblock %}
