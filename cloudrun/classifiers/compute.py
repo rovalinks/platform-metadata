@@ -9,6 +9,7 @@ class ComputeClassifier(ResourceClassifier):
 
     SERVICE = "compute.googleapis.com"
 
+    # Registry remains the same
     SERVICE_REGISTRY = {
         ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -43,33 +44,21 @@ class ComputeClassifier(ResourceClassifier):
     }
 
     def _resolve_key(self, event: AuditLogEvent):
-        # 1. Normalize method and strip API version noise (e.g., 'beta.', 'v1.') and 'compute.'
-        method = self.normalize_method(event.method_name)
-        clean_method = method.replace("compute.", "").replace("beta.", "").replace("v1.", "")
+        # 1. Normalize method string
+        method = self.normalize_method(event.method_name).replace("compute.", "").replace("beta.", "").replace("v1.", "")
         
-        # 2. Specific overrides
-        if "regionDisks.insert" in clean_method:
-            return ("disks", "regions")
-        if "disks.insert" in clean_method:
-            return ("disks", "zones")
+        # 2. Determine resource scope from path
+        scope = "global"
+        if "/zones/" in event.resource_name:
+            scope = "zones"
+        elif "/regions/" in event.resource_name:
+            scope = "regions"
             
-        # 3. Regex for others: extract collection from e.g. "disks.insert"
-        match = re.match(r'(?:region|zone|global)?([A-Za-z]+)\.insert', clean_method)
-        if match:
-            collection_camel = match.group(1)
-            # Camel case to plural snake_case
-            collection = collection_camel[0].lower() + collection_camel[1:] + "s"
-            
-            # Determine scope from resource path
-            scope = "global"
-            if "/zones/" in event.resource_name:
-                scope = "zones"
-            elif "/regions/" in event.resource_name:
-                scope = "regions"
-                
-            key = (collection, scope)
-            return key if key in self.SERVICE_REGISTRY else None
-            
+        # 3. Check directly against keys (e.g., method 'instances.insert' matches key ('instances', scope))
+        for (collection, s), metadata in self.SERVICE_REGISTRY.items():
+            if s == scope and method == f"{collection}.insert":
+                return (collection, s)
+        
         return None
 
     def supports(self, event: AuditLogEvent) -> bool:
