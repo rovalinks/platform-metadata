@@ -68,7 +68,7 @@ class ComputeClient(ResourceClient):
         self.vpn_gateways = compute_v1.VpnGatewaysClient()
         self.vpn_tunnels = compute_v1.VpnTunnelsClient()
         self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
-        self.external_vpn_gateways = compute_v1.ExternalVpnGatewayClient()
+        self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
         self.packet_mirrorings = compute_v1.PacketMirroringsClient()
         self.target_pools = compute_v1.TargetPoolsClient()
         self.ssl_certificates = compute_v1.SslCertificatesClient()
