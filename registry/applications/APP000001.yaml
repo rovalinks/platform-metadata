@@ -1,12 +1,12 @@
 schemaVersion: v1
 
 product: cpe-tagging-validation
-team: cloud-platform-engineering
-owner: rks
-budgetOwner: rohit
-organization: rba
-department: cloud-engineering
-costCenter: PLACEHOLDER
+team: cloud
+owner: xxxx
+budgetOwner: yyyy
+organization: orgs
+department: engineering
+costCenter: C00001
 
 bindings:
 
