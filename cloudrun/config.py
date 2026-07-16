@@ -21,7 +21,7 @@ REGISTRY_CACHE_TTL = int(os.getenv("REGISTRY_CACHE_TTL", "300"))
 DISCOVERY_RETENTION_DAYS = int(os.getenv("DISCOVERY_RETENTION_DAYS", "10"))
 MAX_PARALLEL_WORKERS = int(os.getenv("MAX_PARALLEL_WORKERS", "10"))
 REMEDIATION_BATCH_SIZE = int(os.getenv("REMEDIATION_BATCH_SIZE", "500"))
-LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
+LOG_LEVEL = os.getenv("LOG_LEVEL", "WARNING")
 
 # Booleans
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
