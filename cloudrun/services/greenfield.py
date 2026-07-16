@@ -62,16 +62,11 @@ class GreenfieldService:
         # PUBSUB PAYLOAD UNWRAPPER
         # =====================================================================
         raw_data = None
-        
-        # Scenario 1: Standard Pub/Sub Push Envelope { "message": { "data": "..." } }
         if isinstance(event, dict) and "message" in event and isinstance(event["message"], dict) and "data" in event["message"]:
             raw_data = event["message"]["data"]
-            
-        # Scenario 2: Eventarc Wrapped Envelope { "data": { "message": { "data": "..." } } }
         elif isinstance(event, dict) and "data" in event and isinstance(event["data"], dict) and "message" in event["data"] and isinstance(event["data"]["message"], dict) and "data" in event["data"]["message"]:
             raw_data = event["data"]["message"]["data"]
 
-        # Decode base64 payload to extract the actual Google Cloud Audit Log JSON
         if raw_data:
             try:
                 decoded_payload = base64.b64decode(raw_data).decode("utf-8")
@@ -79,93 +74,48 @@ class GreenfieldService:
                 logger.info("Successfully unwrapped and parsed incoming Pub/Sub CloudEvent.")
             except Exception as exc:
                 logger.error("Failed to decode base64 Pub/Sub payload: %s", exc)
-        # =====================================================================
 
         audit_event = CloudEventParser.parse(event)
 
-        logger.info(
-            "Greenfield Event | service=%s method=%s project=%s resource=%s",
-            audit_event.service_name,
-            audit_event.method_name,
-            audit_event.project_id,
-            audit_event.resource_name,
-        )
-
         try:
+            # 1. Classification
             try:
                 resource_event = self.classification.classify(audit_event)
             except ValueError as exc:
-                duration_ms = int((time.perf_counter() - start) * 1000)
-                self._record_execution(
-                    audit_event,
-                    asset_type="UNSUPPORTED",
-                    status="UNSUPPORTED",
-                    duration_ms=duration_ms,
-                    error_message=str(exc),
-                )
-                logger.warning("Ignoring unsupported audit event. %s", exc)
-                return {"status": "ignored", "service": audit_event.service_name, "method": audit_event.method_name, "resource": audit_event.resource_name}
+                self._record_execution(audit_event, "UNSUPPORTED", "UNSUPPORTED", int((time.perf_counter() - start) * 1000), str(exc))
+                return {"status": "ignored"}
 
-            logger.info("Classification | asset=%s", resource_event.asset_type)
-
+            # 2. Retrieval
             client = self.adapters.client_for(resource_event.asset_type)
-            if client is None:
-                raise RuntimeError(f"No adapter registered for {resource_event.asset_type}")
-
-            try:
-                if hasattr(client, "get"):
-                    resource = client.get(resource_event.resource_name)
-                else:
-                    logger.warning("Adapter for %s is missing a '.get()' method!", resource_event.asset_type)
-                    resources = self.discovery.discover(resource_event.project_id)
-                    resource = next((r for r in resources if r.name == resource_event.resource_name), None)
-
-                if resource is None:
-                    raise NotFound("Resource not found")
-            except NotFound as exc:
-                duration_ms = int((time.perf_counter() - start) * 1000)
-                self._record_execution(audit_event, asset_type=resource_event.asset_type, status="NOT_FOUND", duration_ms=duration_ms)
-                logger.warning("Resource %s no longer exists.", resource_event.resource_name)
-                return {"status": "not_found", "resource": resource_event.resource_name}
+            resource = client.get(resource_event.resource_name) if hasattr(client, "get") else None
+            if not resource:
+                self._record_execution(audit_event, resource_event.asset_type, "NOT_FOUND", int((time.perf_counter() - start) * 1000))
+                return {"status": "not_found"}
 
             resource.project = resource_event.project_id
-            if self.capability.supports_tags(resource.asset_type):
-                resource.tags = self.adapters.tag_service.get_tags(resource.name)
-
-            # compliance = self.compliance.evaluate([resource])[0]
-            # duration_ms = int((time.perf_counter() - start) * 1000)
             
+            # 3. Compliance
             compliance_results = self.compliance.evaluate([resource])
-            
             if not compliance_results:
-                duration_ms = int((time.perf_counter() - start) * 1000)
-                logger.info("Compliance evaluation returned no results for %s", resource.name)
-                self._record_execution(audit_event, asset_type=resource.asset_type, status="SKIPPED", duration_ms=duration_ms)
-                return {"status": "skipped", "resource": resource.name}
+                self._record_execution(audit_event, resource.asset_type, "SKIPPED", int((time.perf_counter() - start) * 1000))
+                return {"status": "skipped"}
 
-            compliance = compliance_results[0]
+            if compliance_results[0].compliant:
+                self._record_execution(audit_event, resource.asset_type, "COMPLIANT", int((time.perf_counter() - start) * 1000))
+                return {"status": "compliant"}
 
-            if compliance.compliant:
-                self._record_execution(audit_event, asset_type=resource.asset_type, status="COMPLIANT", duration_ms=duration_ms)
-                return {"status": "compliant", "resource": resource.name}
-
-            if self.compliance.capability.supports_labels(resource.asset_type):
-                labels, tags = self.governance.expected_labels(resource.project), {}
-            else:
-                labels, tags = {}, self.governance.expected_tags(resource.project)
-
-            result = self.executor.execute_resource(resource, labels, tags)
-            self._record_execution(audit_event, asset_type=resource.asset_type, status="SUCCESS", duration_ms=duration_ms)
+            # 4. Remediation
+            exec_start = time.perf_counter()
+            labels = self.governance.expected_labels(resource.project) if self.compliance.capability.supports_labels(resource.asset_type) else {}
+            tags = {} if self.compliance.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
             
-            return {"status": "remediated", "resource": resource.name, "result": result}
+            result = self.executor.execute_resource(resource, labels, tags)
+            
+            duration_ms = int((time.perf_counter() - start) * 1000)
+            self._record_execution(audit_event, resource.asset_type, "SUCCESS", duration_ms)
+            return {"status": "remediated", "result": result}
 
         except Exception as exc:
             duration_ms = int((time.perf_counter() - start) * 1000)
-            self._record_execution(
-                audit_event=audit_event,
-                asset_type="UNKNOWN",
-                status="FAILED",
-                duration_ms=duration_ms,
-                error_message=str(exc),
-            )
+            self._record_execution(audit_event, "UNKNOWN", "FAILED", duration_ms, str(exc))
             raise
