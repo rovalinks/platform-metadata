@@ -1,12 +1,12 @@
 schemaVersion: v1
 
 product: cpe-tagging-validation
-team: cloud
-owner: xxxx
-budgetOwner: yyyy
-organization: orgs
+team: clouds
+owner: xxxxxx
+budgetOwner: yyyyyy
+organization: orgss
 department: engineering
-costCenter: C00001
+costCenter: C000002
 
 bindings:
 
