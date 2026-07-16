@@ -12,10 +12,10 @@ class ComputeClient(ResourceClient):
         ("instances", "zones"): {"asset_type": "compute.googleapis.com/Instance", "client_attr": "instances", "get_arg": "instance", "set_labels_request_cls": compute_v1.InstancesSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "instances_set_labels_request_resource"},
         ("disks", "zones"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         ("disks", "regions"): {"asset_type": "compute.googleapis.com/Disk", "client_attr": "region_disks", "get_arg": "disk", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        # ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        # ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        # ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        # ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("addresses", "regions"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         
         # ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         # ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -43,7 +43,7 @@ class ComputeClient(ResourceClient):
         # ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
     
-    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta["set_labels_request_cls"] is not None}
+    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
     
     def __init__(self):
         # 1. Operational clients (kept at top)
@@ -55,10 +55,10 @@ class ComputeClient(ResourceClient):
         self.instances = compute_v1.InstancesClient()
         self.disks = compute_v1.DisksClient()
         self.region_disks = compute_v1.RegionDisksClient()
-        # self.addresses = compute_v1.AddressesClient()
-        # self.global_addresses = compute_v1.GlobalAddressesClient()
-        # self.forwarding_rules = compute_v1.ForwardingRulesClient()
-        # self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient() 
+        self.addresses = compute_v1.AddressesClient()
+        self.global_addresses = compute_v1.GlobalAddressesClient()
+        self.forwarding_rules = compute_v1.ForwardingRulesClient()
+        self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient() 
         
         # # Added (was in REGISTRY but missing in original __init__)
         # self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
@@ -105,23 +105,42 @@ class ComputeClient(ResourceClient):
     def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
     
     def _parse_resource_url(self, u):
-            if "//compute.googleapis.com/" in u: u = u.split("//compute.googleapis.com/")[1]
-            p = u.strip("/").split("/")
-            # Expected format: projects/{project}/{scope_type}/{scope_value}/{resource_type}/{name}
+        if "//compute.googleapis.com/" in u: 
+            u = u.split("//compute.googleapis.com/")[1]
+        if "projects/" in u:
+            u = u[u.find("projects/"):]
+        p = u.strip("/").split("/")
+        
+        proj = p[1]
+        scope = p[2]
+        if scope in ("zones", "regions"):
             return {
-                "project": p[1], 
-                "scope_type": p[2], 
-                "scope_value": p[3], 
-                "resource_type": p[4], 
+                "project": proj,
+                "scope_type": scope,
+                "scope_value": p[3],
+                "resource_type": p[4],
                 "name": p[5]
             }
+        return {
+            "project": proj,
+            "scope_type": "global",
+            "scope_value": "global",
+            "resource_type": p[3],
+            "name": p[4]
+        }
     
     def labels(self, r: Resource):
         try:
             if not self.supports_labels(r.asset_type): return None
             info = self._parse_resource_url(r.name)
             entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-            client = getattr(self, entry["client_attr"])
+            if not entry:
+                logger.debug("No registry entry for %s under scope %s", info["resource_type"], info["scope_type"])
+                return None
+            client = getattr(self, entry["client_attr"], None)
+            if not client:
+                logger.warning("Client for attribute %s is not initialized", entry["client_attr"])
+                return None
             kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
             if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
             return dict(getattr(client.get(**kwargs), "labels", {}))
@@ -129,13 +148,23 @@ class ComputeClient(ResourceClient):
             logger.exception("Failed to fetch labels: %s", e); return None
             
     def get(self, n: str) -> Resource:
-        info = self._parse_resource_url(n)
-        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        client = getattr(self, entry["client_attr"])
-        kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-        if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
-        res = client.get(**kwargs)
-        return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
+        try:
+            info = self._parse_resource_url(n)
+            entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+            if not entry:
+                logger.warning("Unsupported resource type %s or scope %s in REGISTRY for %s", info.get("resource_type"), info.get("scope_type"), n)
+                return None
+            client = getattr(self, entry["client_attr"], None)
+            if not client:
+                logger.warning("Client for attribute %s is not initialized, skipping get for %s", entry["client_attr"], n)
+                return None
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+            res = client.get(**kwargs)
+            return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
+        except Exception as e:
+            logger.exception("Failed to get resource %s: %s", n, e)
+            return None
         
     def _apply_labels_generic(self, g, s, req_cls, labels):
         def run():
@@ -155,7 +184,11 @@ class ComputeClient(ResourceClient):
         if not entry or not entry.get("set_labels_request_cls"):
             return True
         
-        client = getattr(self, entry["client_attr"])
+        client = getattr(self, entry["client_attr"], None)
+        if not client:
+            logger.warning("Client attribute %s not found or initialized during apply_labels", entry.get("client_attr"))
+            return True
+            
         meth = getattr(client, entry["set_labels_method"])
         
         scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} \
