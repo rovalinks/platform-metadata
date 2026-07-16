@@ -49,7 +49,6 @@ class ComputeClient(ResourceClient):
         self.zone_operations = compute_v1.ZoneOperationsClient()
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
-        # [Remaining initializations unchanged for brevity...]
         self.instances = compute_v1.InstancesClient()
         self.resource_policies = compute_v1.ResourcePoliciesClient()
         self.disks = compute_v1.DisksClient()
@@ -98,20 +97,12 @@ class ComputeClient(ResourceClient):
     def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
     
     def _parse_resource_url(self, u):
-        try:
-            if u.startswith("//compute.googleapis.com/"): 
-                u = u[len("//compute.googleapis.com/"):]
-            p = u.strip("/").split("/")
-            if len(p) < 4: raise ValueError(f"Malformed resource URL: {u}")
-            proj, scope = p[1], p[2]
-            if scope in ("zones", "regions"): 
-                if len(p) < 6: raise ValueError(f"Malformed zonal/regional URL: {u}")
-                return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
-            return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
-        except Exception as e:
-            logger.error("Failed to parse resource URL '%s': %s", u, e)
-            raise
-
+        if u.startswith("//compute.googleapis.com/"): u = u[len("//compute.googleapis.com/"):]
+        p = u.strip("/").split("/")
+        proj, scope = p[1], p[2]
+        if scope in ("zones", "regions"): return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
+        return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
+    
     def labels(self, r: Resource):
         try:
             if not self.supports_labels(r.asset_type): return None
@@ -146,28 +137,13 @@ class ComputeClient(ResourceClient):
         except PreconditionFailed: return run()
         
     def apply_labels(self, res, labels: dict):
-        info = self._parse_resource_url(res.name)
-        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        info = self._parse_resource_url(res.name); entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
         if not entry or not entry.get("set_labels_request_cls"): return True
         client = getattr(self, entry["client_attr"]); meth = getattr(client, entry["set_labels_method"])
-        
-        scope_key = "zone" if info["scope_type"] == "zones" else ("region" if info["scope_type"] == "regions" else None)
-        scope_arg = {scope_key: info["scope_value"]} if scope_key else {}
-
-        def get_r(): 
-            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-            kwargs.update(scope_arg)
-            return client.get(**kwargs)
-
-        def set_r(req):
-            kwargs = {
-                "project": info["project"],
-                entry["get_arg"]: info["name"],
-                entry["set_labels_arg_name"]: req
-            }
-            kwargs.update(scope_arg)
-            return meth(**kwargs)
-
+        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
+        def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
+        # Fix: Use 'resource' instead of the get_arg to prevent TypeError
+        def set_r(req): kwargs = {"project": info["project"], "resource": info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
         if op and op is not True:
             if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
