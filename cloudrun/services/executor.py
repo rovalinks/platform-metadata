@@ -1,14 +1,11 @@
-from types import SimpleNamespace
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 import time
 from google.api_core.exceptions import BadRequest
-
 import config
 from repositories.execution_repository import ExecutionRepository
 from repositories.remediation_repository import RemediationRepository
 from repositories.run_status_repository import RunStatusRepository
-from repositories.label_ownership_repository import LabelOwnershipRepository
 from services.adapter import AdapterService
 from services.cloud_task_service import CloudTaskService
 from utils.exceptions import format_gcp_exception
@@ -18,8 +15,6 @@ from services.capability import CapabilityService
 from services.tag_service import TagService
 
 class ExecutorService:
-    """Executes enforcement actions."""
-
     def __init__(self):
         self.adapters = AdapterService()
         self.repository = RemediationRepository()
@@ -27,348 +22,71 @@ class ExecutorService:
         self.run_status = RunStatusRepository()
         self.cloud_tasks = CloudTaskService()
         self.ownership = OwnershipService()
-        self.label_repository = LabelOwnershipRepository()
         self.capability = CapabilityService()
         self.tag_service = TagService()
 
     def execute(self, actions):
-        """Executes enforcement actions in parallel."""
-
         results = []
-
-        with ThreadPoolExecutor(
-            max_workers=config.MAX_PARALLEL_WORKERS,
-        ) as executor:
-
-            future_to_action = {
-                executor.submit(
-                    self._execute_single_action,
-                    action,
-                ): action
-                for action in actions
-            }
-
-            for future in as_completed(
-                future_to_action
-            ):
-                results.append(
-                    future.result()
-                )
-
+        with ThreadPoolExecutor(max_workers=config.MAX_PARALLEL_WORKERS) as executor:
+            future_to_action = {executor.submit(self._execute_single_action, action): action for action in actions}
+            for future in as_completed(future_to_action):
+                results.append(future.result())
         return results
 
-    def _execute_single_action(
-        self,
-        action,
-    ):
-        """Execute a single remediation action."""
-
-        client = self.adapters.client_for(
-            action["asset_type"]
-        )
-
+    def _execute_single_action(self, action):
+        client = self.adapters.client_for(action["asset_type"])
         if client is None:
-
-            return {
-                "resource": action["resource"],
-                "status": "unsupported",
-            }
-
-        logger.info(
-            "Applying remediation to %s using %s",
-            action["resource"],
-            client.__class__.__name__,
-        )
-
+            return {"resource": action["resource"], "status": "unsupported"}
+        logger.info("Applying remediation to %s using %s", action["resource"], client.__class__.__name__)
         try:
             resource = client.get(action["resource"])
-
-            managed_labels, managed_tags = self.label_repository.load(
-                action["resource"],
-            )
-
-            new_managed_labels = []
-            new_managed_tags = []
-
-            # 1 & 2: Flow control for Labels vs Tags
             if self.capability.supports_labels(action["asset_type"]):
                 final_labels = self.ownership.build(
                     existing=resource.labels,
                     desired=action["labels"],
-                    managed=managed_labels,
+                    allowed=list(action["labels"].keys())
                 )
-
-                new_managed_labels = self.ownership.managed_keys(
-                    existing=resource.labels,
-                    desired=action["labels"],
-                    managed=managed_labels,
-                )
-
                 client.apply_labels(resource, final_labels)
-
             elif self.capability.supports_tags(action["asset_type"]):
-                # 3, 4 & 5: Use loaded tags and return new managed tags
-                new_managed_tags = self.tag_service.apply_tags(
-                    resource_name=resource.name,
-                    desired_tags=action["tags"],
-                    managed_tags=managed_tags,
-                )
-
-            else:
-                logger.info(
-                    "Resource %s supports neither labels nor tags.",
-                    resource.name,
-                )
-
-            logger.info(
-                "Successfully updated %s",
-                action["resource"],
-            )
-
-            return {
-                "resource": action["resource"],
-                "status": "updated",
-                "managed_labels": new_managed_labels,
-                "managed_tags": new_managed_tags,
-            }
-
+                self.tag_service.apply_tags(resource_name=resource.name, desired_tags=action["tags"], managed_tags=[])
+            logger.info("Successfully updated %s", action["resource"])
+            return {"resource": action["resource"], "status": "updated"}
         except Exception as error:
-            logger.exception(
-                "Failed updating %s",
-                action["resource"],
-            )
+            logger.exception("Failed updating %s", action["resource"])
+            return {"resource": action["resource"], "status": "failed", "error": format_gcp_exception(error)}
 
-            return {
-                "resource": action["resource"],
-                "status": "failed",
-                "error": format_gcp_exception(error),
-            }
-
-    def execute_resource(
-        self,
-        resource,
-        labels: dict,
-        tags: dict,
-    ):
-
-        results = self.execute(
-            [
-                {
-                    "resource": resource.name,
-                    "asset_type": resource.asset_type,
-                    "labels": labels,
-                    "tags": tags,
-                }
-            ]
-        )
-
-        return results[0]
-
-    def execute_batch(
-        self,
-        run_id: str,
-        offset: int,
-        batch_size: int,
-    ):
-        """
-        Execute one remediation batch.
-        """
-
-        plans = self.repository.get_planned_batch(
-            run_id=run_id,
-            offset=offset,
-            batch_size=batch_size,
-        )
-
+    def execute_batch(self, run_id: str, offset: int, batch_size: int):
+        plans = self.repository.get_planned_batch(run_id=run_id, offset=offset, batch_size=batch_size)
         if not plans:
-
-            return {
-                "processed": 0,
-                "successful": 0,
-                "failed": 0,
-            }
-
-        actions = [
-            {
-                "resource": plan.resource_name,
-                "asset_type": plan.asset_type,
-                "labels": plan.planned_labels,
-                "tags": plan.planned_tags,
-            }
-            for plan in plans
-        ]
-
-        results = self.execute(
-            actions
-        )
-
-        plans_by_resource = {
-            plan.resource_name: plan
-            for plan in plans
-        }
-
+            return {"processed": 0, "successful": 0, "failed": 0}
+        actions = [{"resource": p.resource_name, "asset_type": p.asset_type, "labels": p.planned_labels, "tags": p.planned_tags} for p in plans]
+        results = self.execute(actions)
+        plans_by_resource = {p.resource_name: p for p in plans}
         successful = 0
         failed = 0
-
         for result in results:
+            plan = plans_by_resource[result["resource"]]
+            status = "SUCCESS" if result["status"] == "updated" else "FAILED"
+            if status == "SUCCESS": successful += 1
+            else: failed += 1
+            self.execution_repository.save(run_id=run_id, project_id=plan.project_id, asset_type=plan.asset_type, resource_name=plan.resource_name, status=status, execution_mode="BROWNFIELD", error_message=result.get("error"))
+            for attempt in range(12):
+                try:
+                    if status == "SUCCESS": self.repository.mark_success(run_id, plan.resource_name)
+                    else: self.repository.mark_failed(run_id, plan.resource_name)
+                    break
+                except BadRequest as e:
+                    if "streaming buffer" not in str(e): raise
+                    time.sleep(10)
+        if self.execution_repository.is_completed(run_id):
+            counts = self.repository.count_by_status(run_id)
+            self.run_status.complete(run_id=run_id, successful=counts.get("SUCCESS", 0), failed=counts.get("FAILED", 0))
+        return {"processed": len(plans), "successful": successful, "failed": failed}
 
-            plan = plans_by_resource[
-                result["resource"]
-            ]
-
-            if result["status"] == "updated":
-
-                successful += 1
-                status = "SUCCESS"
-
-            else:
-
-                failed += 1
-                status = "FAILED"
-
-            self.execution_repository.save(
-                run_id=run_id,
-                project_id=plan.project_id,
-                asset_type=plan.asset_type,
-                resource_name=plan.resource_name,
-                status=status,
-                execution_mode="BROWNFIELD",
-                error_message=result.get("error"),
-            )
-
-            if status == "SUCCESS":
-                self.label_repository.save(
-                    resource_name=plan.resource_name,
-                    managed_labels=result["managed_labels"],
-                    managed_tags=result["managed_tags"],
-                )
-
-                # Mark success with streaming buffer retry loop
-                for attempt in range(12):
-                    try:
-                        self.repository.mark_success(
-                            run_id,
-                            plan.resource_name,
-                        )
-                        break
-                    except BadRequest as e:
-                        if "streaming buffer" not in str(e):
-                            raise
-                        logger.info("Waiting for streaming buffer...")
-                        time.sleep(10)
-            else:
-                for attempt in range(12):
-                    try:
-                        self.repository.mark_failed(
-                            run_id,
-                            plan.resource_name,
-                        )
-                        break
-                    except BadRequest as e:
-                        if "streaming buffer" not in str(e):
-                            raise
-                        logger.info("Waiting for streaming buffer...")
-                        time.sleep(10)
-
-        if self.execution_repository.is_completed(
-            run_id
-        ):
-
-            counts = self.repository.count_by_status(
-                run_id
-            )
-
-            self.run_status.complete(
-                run_id=run_id,
-                successful=counts.get(
-                    "SUCCESS",
-                    0,
-                ),
-                failed=counts.get(
-                    "FAILED",
-                    0,
-                ),
-            )
-
-            logger.info(
-                "Run %s completed.",
-                run_id,
-            )
-
-        logger.info(
-            "Batch complete. Successful=%d Failed=%d",
-            successful,
-            failed,
-        )
-
-        return {
-            "processed": len(plans),
-            "successful": successful,
-            "failed": failed,
-        }
-
-    def execute_run(
-        self,
-        run_id: str,
-        planned_actions_count: int,
-    ):
-        """
-        Queue remediation batches for asynchronous execution.
-        """
-
-        logger.info(
-            "Dispatching remediation run %s to Cloud Tasks",
-            run_id,
-        )
-
-        if self.execution_repository.already_executed(
-            run_id
-        ):
-
-            raise RuntimeError(
-                f"Remediation run {run_id} has already been executed."
-            )
-
-        if planned_actions_count == 0:
-
-            logger.info(
-                "No remediation actions to queue."
-            )
-
-            return {
-                "run_id": run_id,
-                "status": "COMPLETED",
-                "resources": 0,
-            }
-
-        total_batches = math.ceil(
-            planned_actions_count / config.REMEDIATION_BATCH_SIZE
-        )
-
+    def execute_run(self, run_id: str, planned_actions_count: int):
+        if self.execution_repository.already_executed(run_id): raise RuntimeError(f"Run {run_id} already executed.")
+        if planned_actions_count == 0: return {"run_id": run_id, "status": "COMPLETED", "resources": 0}
+        total_batches = math.ceil(planned_actions_count / config.REMEDIATION_BATCH_SIZE)
         for batch_number in range(total_batches):
-
-            offset = (
-                batch_number
-                * config.REMEDIATION_BATCH_SIZE
-            )
-
-            self.cloud_tasks.enqueue_remediation_batch(
-                run_id=run_id,
-                batch_number=batch_number + 1,
-                total_batches=total_batches,
-                offset=offset,
-                batch_size=config.REMEDIATION_BATCH_SIZE,
-            )
-
-        logger.info(
-            "Queued %d remediation action(s) in %d batches.",
-            planned_actions_count,
-            total_batches,
-        )
-
-        return {
-            "run_id": run_id,
-            "status": "QUEUED",
-            "resources": planned_actions_count,
-            "batches": total_batches,
-        }
+            self.cloud_tasks.enqueue_remediation_batch(run_id=run_id, batch_number=batch_number + 1, total_batches=total_batches, offset=(batch_number * config.REMEDIATION_BATCH_SIZE), batch_size=config.REMEDIATION_BATCH_SIZE)
+        return {"run_id": run_id, "status": "QUEUED", "resources": planned_actions_count, "batches": total_batches}
