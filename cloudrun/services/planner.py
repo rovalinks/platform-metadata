@@ -52,16 +52,19 @@ class PlannerService:
 
             expected_metadata = expected_metadata_cache[cache_key]
 
-            # 1. Build the desired metadata once
+            # 1. Build the desired metadata using both missing AND incorrect labels
             planned_labels = {}
-            for label in result.missing_labels:
-                if label in expected_metadata:
-                    planned_labels[label] = expected_metadata[label]
+            # Combine both lists to catch everything that needs fixing
+            remediation_keys = set(result.missing_labels) | set(result.incorrect_labels)
+            
+            for key in remediation_keys:
+                if key in expected_metadata:
+                    planned_labels[key] = expected_metadata[key]
 
             # 2. Decide the enforcement mechanism
             planned_tags = {}
             if mode == "labels":
-                # If no labels were actually missing/expected, skip
+                # If no labels need fixing, skip this resource
                 if not planned_labels:
                     continue
             else:
@@ -80,7 +83,8 @@ class PlannerService:
                     project_id=project,
                     asset_type=result.asset_type,
                     resource_name=result.name,
-                    missing_labels=result.missing_labels,
+                    # We pass the full set of keys that triggered remediation
+                    missing_labels=list(remediation_keys),
                     planned_labels=planned_labels,
                     planned_tags=planned_tags,
                 )
