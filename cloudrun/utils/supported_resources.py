@@ -1,7 +1,7 @@
 SUPPORTED_LABEL_RESOURCES = {
     "compute.googleapis.com/Instance",
     "compute.googleapis.com/Disk",
-    # "compute.googleapis.com/ForwardingRule",
+    "compute.googleapis.com/ForwardingRule",
     # "compute.googleapis.com/Address",
     # "compute.googleapis.com/ExternalVpnGateway",
     # "compute.googleapis.com/SecurityPolicy",
