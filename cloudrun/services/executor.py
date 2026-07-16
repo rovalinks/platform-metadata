@@ -33,6 +33,22 @@ class ExecutorService:
                 results.append(future.result())
         return results
 
+    def execute_resource(self, resource, labels: dict, tags: dict):
+        """
+        Executes a single resource action for greenfield flows.
+        """
+        # We reuse the same logic as execute() but for a single resource
+        return self.execute(
+            [
+                {
+                    "resource": resource.name,
+                    "asset_type": resource.asset_type,
+                    "labels": labels,
+                    "tags": tags,
+                }
+            ]
+        )[0]
+
     def _execute_single_action(self, action):
         client = self.adapters.client_for(action["asset_type"])
         if client is None:
