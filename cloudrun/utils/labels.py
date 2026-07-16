@@ -21,3 +21,17 @@ def normalize_label_value(value: str) -> str:
     value = re.sub(r"-+", "-", value)
 
     return value.strip("-")
+
+
+def reconcile_labels(existing_labels: dict, schema_labels: dict) -> dict:
+    """
+    Merges schema_labels into existing_labels while preserving 
+    customer-managed labels.
+    """
+    # Start with existing labels to ensure customer-managed keys are kept
+    final_labels = existing_labels.copy() if existing_labels else {}
+    
+    # Update with schema_labels (this overwrites only schema-enforced keys)
+    final_labels.update(schema_labels)
+    
+    return final_labels
