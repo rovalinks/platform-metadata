@@ -2,7 +2,8 @@ from utils.logger import logger
 from models.compliance import ComplianceResult, ComplianceSummary
 from services.governance import GovernanceService
 from services.capability import CapabilityService
-
+# Import SnapshotRepository here to avoid potential circular dependencies
+from repositories.snapshot_repository import SnapshotRepository
 
 class ComplianceService:
     """Evaluates governance compliance for one or more GCP resources."""
@@ -15,13 +16,9 @@ class ComplianceService:
         """
         Evaluate compliance for a provided list of resources.
         """
-        logger.info(
-            "Evaluating compliance for %d resource(s)",
-            len(resources),
-        )
+        logger.info("Evaluating compliance for %d resource(s)", len(resources))
 
         results = []
-        # Caches to avoid redundant governance API calls
         label_cache = {}
         tag_cache = {}
 
@@ -29,11 +26,11 @@ class ComplianceService:
             is_label_supported = self.capability.supports_labels(resource.asset_type)
             is_tag_supported = self.capability.supports_tags(resource.asset_type)
 
-            # Check if resource type is supported for either label or tag evaluation
             if not (is_label_supported or is_tag_supported):
+                # Log skipped resources for debugging purposes
+                logger.debug("Skipping unsupported resource type: %s", resource.asset_type)
                 continue
 
-            # Fetch expected schema based on capability, using caches
             project = resource.project
             expected = {}
 
@@ -46,7 +43,6 @@ class ComplianceService:
                     tag_cache[project] = self.governance.expected_tags(project)
                 expected = tag_cache[project]
 
-            # Evaluate resource
             results.append(
                 self._evaluate_resource(
                     resource,
@@ -55,40 +51,26 @@ class ComplianceService:
                 )
             )
 
-        logger.info(
-            "Evaluated %d supported resources",
-            len(results),
-        )
+        logger.info("Evaluated %d supported resources", len(results))
 
+        # Guard Clause: Prevent BigQuery insertion if results are empty
         if run_id:
-            from repositories.snapshot_repository import SnapshotRepository
-
-            SnapshotRepository().save_compliance(
-                results,
-                run_id,
-            )
+            if not results:
+                logger.warning("No compliance results found. Skipping BigQuery insertion to avoid error.")
+            else:
+                SnapshotRepository().save_compliance(results, run_id)
 
         return results
 
-    def _evaluate_resource(
-        self,
-        resource,
-        expected_schema,
-        is_label_mode,
-    ):
+    def _evaluate_resource(self, resource, expected_schema, is_label_mode):
         """Helper to evaluate compliance for a single resource."""
         missing = []
         incorrect = []
 
-        # Choose the metadata source based on the mode determined in evaluate()
         actual_metadata = (resource.labels if is_label_mode else resource.tags) or {}
-        logger.info("Mode: %s", "labels" if is_label_mode else "tags")
-        logger.info("Expected: %s", expected_schema)
-        logger.info("Actual: %s", actual_metadata)
-
+        
         for key, expected_value in expected_schema.items():
             actual_value = actual_metadata.get(key)
-
             if actual_value is None:
                 missing.append(key)
             elif str(actual_value) != str(expected_value):
@@ -98,19 +80,13 @@ class ComplianceService:
             asset_type=resource.asset_type,
             name=resource.name,
             project=resource.project,
-            compliant=(
-                len(missing) == 0
-                and len(incorrect) == 0
-            ),
+            compliant=(len(missing) == 0 and len(incorrect) == 0),
             missing_labels=missing,
             incorrect_labels=incorrect,
         )
 
     def evaluate_resource(self, resource):
-        """
-        Evaluate compliance for a single discovered resource.
-        """
-        # Determine mode for single resource evaluation
+        """Evaluate compliance for a single discovered resource."""
         if self.capability.supports_labels(resource.asset_type):
             expected = self.governance.expected_labels(resource.project)
             return self._evaluate_resource(resource, expected, is_label_mode=True)
@@ -119,12 +95,9 @@ class ComplianceService:
             return self._evaluate_resource(resource, expected, is_label_mode=False)
 
     def summary(self, resources):
-        """
-        Generate a summary for a provided list of resources.
-        """
+        """Generate a summary for a provided list of resources."""
         results = self.evaluate(resources)
         total = len(results)
-        
         compliant = sum(1 for result in results if result.compliant)
         non_compliant = total - compliant
         percentage = ((compliant / total) * 100) if total else 100
