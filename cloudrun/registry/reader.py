@@ -5,16 +5,14 @@ from google.cloud import storage
 from cache.registry_cache import RegistryCache
 from config import REGISTRY_BUCKET, REGISTRY_PREFIX, REGISTRY_CACHE_TTL
 from utils.logger import logger
-
 class RegistryReader:
     """Reads application registry YAML files from Cloud Storage."""
     def __init__(self):
         self.client = storage.Client()
         self._last_refresh = 0
-
-    def load_all(self):
+    def load_all(self, force_refresh: bool = False):
         current_time = time.time()
-        applications = RegistryCache.get()
+        applications = None if force_refresh else RegistryCache.get()
         if applications is not None and (current_time - self._last_refresh) < REGISTRY_CACHE_TTL:
             return applications
         logger.info("========== REGISTRY READER START ==========")
