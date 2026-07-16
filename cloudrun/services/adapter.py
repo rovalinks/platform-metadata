@@ -2,7 +2,7 @@ import logging
 
 from services.tag_service import TagService
 from services.capability import CapabilityService
-from config.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 from clients.compute import ComputeClient
 # from clients.bigquery import BigQueryClient
 # from clients.storage import StorageClient
