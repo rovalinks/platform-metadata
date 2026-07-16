@@ -143,15 +143,26 @@ class ComputeClient(ResourceClient):
         def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
         # Fix: Use 'resource' instead of the get_arg to prevent TypeError
         #def set_r(req): kwargs = {"project": info["project"], "resource": info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
+        # def set_r(req):
+        #     # Use entry["get_arg"] instead of hardcoded "resource"
+        #     kwargs = {
+        #         "project": info["project"], 
+        #         entry["get_arg"]: info["name"], 
+        #         entry["set_labels_arg_name"]: req
+        #     }
+        #     kwargs.update(scope_arg)
+        #     return meth(**kwargs)
+        # In clients/compute.py, inside your _apply_labels_generic helper
         def set_r(req):
-            # Use entry["get_arg"] instead of hardcoded "resource"
-            kwargs = {
-                "project": info["project"], 
-                entry["get_arg"]: info["name"], 
-                entry["set_labels_arg_name"]: req
-            }
-            kwargs.update(scope_arg)
+            # Instead of hardcoding 'resource' or 'disk', look up the required key
+            # Most services use the resource name as the argument. 
+            # For Disks, it is 'disk'. For Instances, it is 'instance'.
+            arg_name = entry.get("get_arg", "resource") 
+            kwargs = {"project": info["project"], arg_name: info["name"], entry["set_labels_arg_name"]: req}
+            if "zone" in info: kwargs["zone"] = info["zone"]
+            if "region" in info: kwargs["region"] = info["region"]
             return meth(**kwargs)
+
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
         if op and op is not True:
             if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)

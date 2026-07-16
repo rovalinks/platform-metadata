@@ -132,8 +132,18 @@ class GreenfieldService:
             if self.capability.supports_tags(resource.asset_type):
                 resource.tags = self.adapters.tag_service.get_tags(resource.name)
 
-            compliance = self.compliance.evaluate([resource])[0]
-            duration_ms = int((time.perf_counter() - start) * 1000)
+            # compliance = self.compliance.evaluate([resource])[0]
+            # duration_ms = int((time.perf_counter() - start) * 1000)
+            
+            compliance_results = self.compliance.evaluate([resource])
+            
+            if not compliance_results:
+                duration_ms = int((time.perf_counter() - start) * 1000)
+                logger.info("Compliance evaluation returned no results for %s", resource.name)
+                self._record_execution(audit_event, asset_type=resource.asset_type, status="SKIPPED", duration_ms=duration_ms)
+                return {"status": "skipped", "resource": resource.name}
+
+            compliance = compliance_results[0]
 
             if compliance.compliant:
                 self._record_execution(audit_event, asset_type=resource.asset_type, status="COMPLIANT", duration_ms=duration_ms)
