@@ -46,12 +46,9 @@ class ComputeClient(ResourceClient):
     SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
     
     def __init__(self):
-        # 1. Operational clients (kept at top)
         self.zone_operations = compute_v1.ZoneOperationsClient()
         self.region_operations = compute_v1.RegionOperationsClient()
         self.global_operations = compute_v1.GlobalOperationsClient()
-
-        # 2. Clients ordered by their appearance in the REGISTRY
         self.instances = compute_v1.InstancesClient()
         self.disks = compute_v1.DisksClient()
         self.region_disks = compute_v1.RegionDisksClient()
@@ -59,88 +56,27 @@ class ComputeClient(ResourceClient):
         self.global_addresses = compute_v1.GlobalAddressesClient()
         self.forwarding_rules = compute_v1.ForwardingRulesClient()
         self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient() 
-        
-        # # Added (was in REGISTRY but missing in original __init__)
-        # self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
-        # self.instance_groups = compute_v1.InstanceGroupsClient()
-        # self.resource_policies = compute_v1.ResourcePoliciesClient()
-        # self.subnetworks = compute_v1.SubnetworksClient()
-        # self.region_health_checks = compute_v1.RegionHealthChecksClient()
-        # self.region_backend_services = compute_v1.RegionBackendServicesClient()
-        # self.region_ssl_certificates = compute_v1.RegionSslCertificatesClient()
-        # self.region_target_https_proxies = compute_v1.RegionTargetHttpsProxiesClient()
-        # self.region_url_maps = compute_v1.RegionUrlMapsClient()
-        # self.region_target_http_proxies = compute_v1.RegionTargetHttpProxiesClient()
-        # self.region_instance_groups = compute_v1.RegionInstanceGroupsClient()
-        # self.vpn_tunnels = compute_v1.VpnTunnelsClient()
-        # self.vpn_gateways = compute_v1.VpnGatewaysClient()
-        # self.health_checks = compute_v1.HealthChecksClient()
-        # self.backend_services = compute_v1.BackendServicesClient()
-        # self.ssl_certificates = compute_v1.SslCertificatesClient()
-        # self.target_https_proxies = compute_v1.TargetHttpsProxiesClient()
-        # self.url_maps = compute_v1.UrlMapsClient()
-        # self.snapshots = compute_v1.SnapshotsClient()
-        # self.target_http_proxies = compute_v1.TargetHttpProxiesClient()
-        # self.machine_images = compute_v1.MachineImagesClient()
-        # self.images = compute_v1.ImagesClient()
-        # self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
-        # self.networks = compute_v1.NetworksClient()
-
-        # 3. Additional clients present in original __init__ but not in REGISTRY
-        # self.firewalls = compute_v1.FirewallsClient()
-        # self.routers = compute_v1.RoutersClient()
-        # self.network_attachments = compute_v1.NetworkAttachmentsClient()
-        # self.service_attachments = compute_v1.ServiceAttachmentsClient()
-        # self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
-        # self.packet_mirrorings = compute_v1.PacketMirroringsClient()
-        # self.target_pools = compute_v1.TargetPoolsClient()
-        # self.ssl_policies = compute_v1.SslPoliciesClient()
-        # self.instance_templates = compute_v1.InstanceTemplatesClient()
-        # self.instance_group_managers = compute_v1.InstanceGroupManagersClient()
-        # self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
-        # self.security_policies = compute_v1.SecurityPoliciesClient()
 
     def supports(self, a): return a.startswith("compute.googleapis.com/")
     
     def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
     
     def _parse_resource_url(self, u):
-        if "//compute.googleapis.com/" in u: 
-            u = u.split("//compute.googleapis.com/")[1]
-        if "projects/" in u:
-            u = u[u.find("projects/"):]
+        if "//compute.googleapis.com/" in u: u = u.split("//compute.googleapis.com/")[1]
+        if "projects/" in u: u = u[u.find("projects/"):]
         p = u.strip("/").split("/")
-        
-        proj = p[1]
-        scope = p[2]
+        proj, scope = p[1], p[2]
         if scope in ("zones", "regions"):
-            return {
-                "project": proj,
-                "scope_type": scope,
-                "scope_value": p[3],
-                "resource_type": p[4],
-                "name": p[5]
-            }
-        return {
-            "project": proj,
-            "scope_type": "global",
-            "scope_value": "global",
-            "resource_type": p[3],
-            "name": p[4]
-        }
+            return {"project": proj, "scope_type": scope, "scope_value": p[3], "resource_type": p[4], "name": p[5]}
+        return {"project": proj, "scope_type": "global", "scope_value": "global", "resource_type": p[3], "name": p[4]}
     
     def labels(self, r: Resource):
         try:
             if not self.supports_labels(r.asset_type): return None
             info = self._parse_resource_url(r.name)
             entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-            if not entry:
-                logger.debug("No registry entry for %s under scope %s", info["resource_type"], info["scope_type"])
-                return None
+            if not entry: return None
             client = getattr(self, entry["client_attr"], None)
-            if not client:
-                logger.warning("Client for attribute %s is not initialized", entry["client_attr"])
-                return None
             kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
             if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
             return dict(getattr(client.get(**kwargs), "labels", {}))
@@ -151,20 +87,14 @@ class ComputeClient(ResourceClient):
         try:
             info = self._parse_resource_url(n)
             entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-            if not entry:
-                logger.warning("Unsupported resource type %s or scope %s in REGISTRY for %s", info.get("resource_type"), info.get("scope_type"), n)
-                return None
+            if not entry: return None
             client = getattr(self, entry["client_attr"], None)
-            if not client:
-                logger.warning("Client for attribute %s is not initialized, skipping get for %s", entry["client_attr"], n)
-                return None
             kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
             if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
             res = client.get(**kwargs)
             return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
         except Exception as e:
-            logger.exception("Failed to get resource %s: %s", n, e)
-            return None
+            logger.exception("Failed to get resource %s: %s", n, e); return None
         
     def _apply_labels_generic(self, g, s, req_cls, labels):
         def run():
@@ -181,26 +111,17 @@ class ComputeClient(ResourceClient):
     def apply_labels(self, res, labels: dict):
         info = self._parse_resource_url(res.name)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        if not entry or not entry.get("set_labels_request_cls"):
-            return True
-        
+        if not entry or not entry.get("set_labels_request_cls"): return True
         client = getattr(self, entry["client_attr"], None)
-        if not client:
-            logger.warning("Client attribute %s not found or initialized during apply_labels", entry.get("client_attr"))
-            return True
-            
         meth = getattr(client, entry["set_labels_method"])
-        
-        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} \
-            if info["scope_type"] in ("zones", "regions") else {}
+        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
         
         def get_r():
             kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
             kwargs.update(scope_arg)
             return client.get(**kwargs)
             
-    def set_r(req):
-            # Grab the specific set_arg, or default to get_arg if not found
+        def set_r(req):
             set_target = entry.get("set_arg", entry["get_arg"]) 
             kwargs = {"project": info["project"], set_target: info["name"]}
             kwargs.update(scope_arg)
@@ -208,12 +129,8 @@ class ComputeClient(ResourceClient):
             return meth(**kwargs)
             
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
-        
         if op and op is not True:
-            if info["scope_type"] == "zones":
-                self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
-            elif info["scope_type"] == "regions":
-                self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
-            else:
-                self.global_operations.wait(project=info["project"], operation=op.name)
+            if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
+            elif info["scope_type"] == "regions": self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
+            else: self.global_operations.wait(project=info["project"], operation=op.name)
         return True
