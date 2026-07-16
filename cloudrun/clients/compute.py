@@ -97,19 +97,14 @@ class ComputeClient(ResourceClient):
             logger.exception("Failed to get resource %s: %s", n, e); return None
         
     def _apply_labels_generic(self, g, s, req_cls, labels):
-        # def run():
-        #     res = g(); ex = dict(getattr(res, "labels", {})); m = ex.copy()
-        #     if config.PRESERVE_EXISTING_LABELS:
-        #         for k, v in labels.items():
-        #             if k not in m: m[k] = v
-        #     else: m.update(labels)
-        #     if m == ex: return True
-        #     return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
-        
         def run():
-            res = g()
-            # Enforce full replacement of labels to resolve regressions
-            return s(req_cls(labels=labels, label_fingerprint=res.label_fingerprint))
+            res = g(); ex = dict(getattr(res, "labels", {})); m = ex.copy()
+            if config.PRESERVE_EXISTING_LABELS:
+                for k, v in labels.items():
+                    if k not in m: m[k] = v
+            else: m.update(labels)
+            if m == ex: return True
+            return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
         try: return run()
         except PreconditionFailed: return run()
         
