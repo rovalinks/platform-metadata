@@ -2,6 +2,7 @@ import logging
 
 from services.tag_service import TagService
 from services.capability import CapabilityService
+from config.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 from clients.compute import ComputeClient
 # from clients.bigquery import BigQueryClient
 # from clients.storage import StorageClient
@@ -43,68 +44,51 @@ class AdapterService:
             FunctionsClient(),
         ]
 
-    def client_for(
-        self,
-        asset_type: str,
-    ):
+    def client_for(self, asset_type: str):
         for client in self.clients:
             if client.supports(asset_type):
                 return client
-
         return None
 
-    def enrich(
-        self,
-        resource,
-    ):
+    def enrich(self, resource):
         """
-        Populate a discovered resource with live metadata and tags.
+        Populate a discovered resource with live metadata and tags 
+        only if it is a supported resource type.
         """
-        client = self.client_for(
-            resource.asset_type
-        )
+        
+        # Determine if the resource is supported for either labels or tags
+        is_label_supported = resource.asset_type in SUPPORTED_LABEL_RESOURCES
+        is_tag_supported = resource.asset_type in SUPPORTED_TAG_RESOURCES
+
+        # If the resource is not in either list, skip enrichment entirely to avoid unnecessary calls
+        if not is_label_supported and not is_tag_supported:
+            return resource
+
+        client = self.client_for(resource.asset_type)
 
         if client is None:
             return resource
 
         try:
-            logger.info("=" * 80)
-            logger.info("Enriching resource")
-            logger.info(
-                "Asset Type : %s",
-                resource.asset_type,
-            )
-            logger.info(
-                "Name       : %s",
-                resource.name,
-            )
+            # Only perform label enrichment if it is supported
+            if is_label_supported:
+                logger.info("=" * 80)
+                logger.info("Enriching resource: %s", resource.name)
+                
+                labels = client.labels(resource)
+                
+                if labels is None:
+                    logger.warning("Skipping resource (labels returned None): %s", resource.name)
+                    return None
+                
+                resource.labels = labels
 
-            labels = client.labels(
-                resource
-            )
+            # Apply tags if the resource supports them
+            if is_tag_supported:
+                resource.tags = self.tag_service.get_tags(resource.name)
 
         except Exception:
-            logger.exception(
-                "Failed to enrich %s",
-                resource.asset_type,
-            )
+            logger.exception("Failed to enrich %s", resource.asset_type)
             return None
-
-        if labels is None:
-            logger.warning(
-                "Skipping resource because labels() returned None: %s",
-                resource.name,
-            )
-            return None
-
-        resource.labels = labels
-
-        # Apply tags if the resource supports them
-        if self.capability.supports_tags(
-            resource.asset_type,
-        ):
-            resource.tags = self.tag_service.get_tags(
-                resource.name,
-            )
 
         return resource
