@@ -4,6 +4,7 @@ import logging
 from clients.base import ResourceClient
 from models.resource import Resource
 import config
+from utils.labels import reconcile_labels
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +17,7 @@ class ComputeClient(ResourceClient):
         ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        
+
         # ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         # ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         # ("resourcePolicies", "regions"): {"asset_type": "compute.googleapis.com/ResourcePolicy", "client_attr": "resource_policies", "get_arg": "resource_policy", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
@@ -43,7 +44,7 @@ class ComputeClient(ResourceClient):
         # ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
     
-    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
+SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
     
     def __init__(self):
         self.zone_operations = compute_v1.ZoneOperationsClient()
@@ -56,6 +57,44 @@ class ComputeClient(ResourceClient):
         self.global_addresses = compute_v1.GlobalAddressesClient()
         self.forwarding_rules = compute_v1.ForwardingRulesClient()
         self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient() 
+
+
+        # self.resource_policies = compute_v1.ResourcePoliciesClient()
+        # self.snapshots = compute_v1.SnapshotsClient()
+        # self.images = compute_v1.ImagesClient()
+        # self.machine_images = compute_v1.MachineImagesClient()
+        # self.networks = compute_v1.NetworksClient()
+        # self.subnetworks = compute_v1.SubnetworksClient()
+        # self.firewalls = compute_v1.FirewallsClient()
+        # self.routers = compute_v1.RoutersClient()
+        # self.network_attachments = compute_v1.NetworkAttachmentsClient()
+        # self.service_attachments = compute_v1.ServiceAttachmentsClient()
+        # self.vpn_gateways = compute_v1.VpnGatewaysClient()
+        # self.vpn_tunnels = compute_v1.VpnTunnelsClient()
+        # self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
+        # self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
+        # self.packet_mirrorings = compute_v1.PacketMirroringsClient()
+        # self.target_pools = compute_v1.TargetPoolsClient()
+        # self.ssl_certificates = compute_v1.SslCertificatesClient()
+        # self.region_ssl_certificates = compute_v1.RegionSslCertificatesClient()
+        # self.ssl_policies = compute_v1.SslPoliciesClient()
+        # self.target_http_proxies = compute_v1.TargetHttpProxiesClient()
+        # self.region_target_http_proxies = compute_v1.RegionTargetHttpProxiesClient()
+        # self.target_https_proxies = compute_v1.TargetHttpsProxiesClient()
+        # self.region_target_https_proxies = compute_v1.RegionTargetHttpsProxiesClient()
+        # self.url_maps = compute_v1.UrlMapsClient()
+        # self.region_url_maps = compute_v1.RegionUrlMapsClient()
+        # self.backend_services = compute_v1.BackendServicesClient()
+        # self.region_backend_services = compute_v1.RegionBackendServicesClient()
+        # self.health_checks = compute_v1.HealthChecksClient()
+        # self.region_health_checks = compute_v1.RegionHealthChecksClient()
+        # self.network_endpoint_groups = compute_v1.NetworkEndpointGroupsClient()
+        # self.instance_groups = compute_v1.InstanceGroupsClient()
+        # self.region_instance_groups = compute_v1.RegionInstanceGroupsClient()
+        # self.instance_templates = compute_v1.InstanceTemplatesClient()
+        # self.instance_group_managers = compute_v1.InstanceGroupManagersClient()
+        # self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
+        # self.security_policies = compute_v1.SecurityPoliciesClient()
 
     def supports(self, a): return a.startswith("compute.googleapis.com/")
     
@@ -98,12 +137,12 @@ class ComputeClient(ResourceClient):
         
     def _apply_labels_generic(self, g, s, req_cls, labels):
         def run():
-            res = g(); ex = dict(getattr(res, "labels", {})); m = ex.copy()
-            if config.PRESERVE_EXISTING_LABELS:
-                for k, v in labels.items():
-                    if k not in m: m[k] = v
-            else: m.update(labels)
+            res = g()
+            ex = dict(getattr(res, "labels", {}))
+            # Use reconcile_labels to merge safely while keeping existing labels[cite: 11]
+            m = reconcile_labels(ex, labels)
             if m == ex: return True
+            # Include fingerprint for optimistic locking requirement[cite: 11]
             return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
         try: return run()
         except PreconditionFailed: return run()
