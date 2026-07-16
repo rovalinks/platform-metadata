@@ -136,17 +136,41 @@ class ComputeClient(ResourceClient):
         try: return run()
         except PreconditionFailed: return run()
         
-    def apply_labels(self, res, labels: dict):
-        info = self._parse_resource_url(res.name); entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-        if not entry or not entry.get("set_labels_request_cls"): return True
-        client = getattr(self, entry["client_attr"]); meth = getattr(client, entry["set_labels_method"])
-        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
-        def get_r(): kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}; kwargs.update(scope_arg); return client.get(**kwargs)
-        # Fix: Use 'resource' instead of the get_arg to prevent TypeError
-        def set_r(req): kwargs = {"project": info["project"], "resource": info["name"], entry["set_labels_arg_name"]: req}; kwargs.update(scope_arg); return meth(**kwargs)
+  def apply_labels(self, res, labels: dict):
+        info = self._parse_resource_url(res.name)
+        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        if not entry or not entry.get("set_labels_request_cls"):
+            return True
+        
+        client = getattr(self, entry["client_attr"])
+        meth = getattr(client, entry["set_labels_method"])
+        
+        scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} \
+            if info["scope_type"] in ("zones", "regions") else {}
+        
+        # 1. Fetch current resource
+        def get_r():
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            kwargs.update(scope_arg)
+            return client.get(**kwargs)
+            
+        # 2. Corrected Set logic: The API method expects the project, 
+        # the resource name (or ID), and the request object as a keyword argument.
+        def set_r(req):
+            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            kwargs.update(scope_arg)
+            # Use the specific arg name from your REGISTRY for the request object
+            kwargs[entry["set_labels_arg_name"]] = req
+            return meth(**kwargs)
+            
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
+        
         if op and op is not True:
-            if info["scope_type"] == "zones": self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
-            elif info["scope_type"] == "regions": self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
-            else: self.global_operations.wait(project=info["project"], operation=op.name)
+            # Wait for the operation to complete
+            if info["scope_type"] == "zones":
+                self.zone_operations.wait(project=info["project"], zone=info["scope_value"], operation=op.name)
+            elif info["scope_type"] == "regions":
+                self.region_operations.wait(project=info["project"], region=info["scope_value"], operation=op.name)
+            else:
+                self.global_operations.wait(project=info["project"], operation=op.name)
         return True
