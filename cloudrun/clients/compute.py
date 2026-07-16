@@ -44,7 +44,7 @@ class ComputeClient(ResourceClient):
         # ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
     
-SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
+    SUPPORTED_LABEL_TYPES = {meta["asset_type"] for meta in REGISTRY.values() if meta.get("set_labels_request_cls") is not None}
     
     def __init__(self):
         self.zone_operations = compute_v1.ZoneOperationsClient()
