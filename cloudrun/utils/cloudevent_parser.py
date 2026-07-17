@@ -1,5 +1,6 @@
 import json
 import base64
+import logging
 from models.resource_event import CAIEventPayload
 
 def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
@@ -7,6 +8,8 @@ def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
     Parses a Pub/Sub envelope triggered by a Cloud Asset Inventory feed,
     decodes the base64 data, and validates it against the CAIEventPayload model.
     """
+    logging.info(f"DEBUG_PAYLOAD: {envelope}")
+
     if not envelope or 'message' not in envelope:
         raise ValueError("Invalid Pub/Sub envelope format: Missing 'message' key.")
         
