@@ -6,6 +6,10 @@ from registry.reader import RegistryReader
 logger = logging.getLogger(__name__)
 registry = RegistryReader()
 
+def greenfield(payload):
+    # This acts as the wrapper to match what dispatcher.py expects
+    return handle_greenfield_event(payload)
+    
 def handle_greenfield_event(request: Request):
     """
     Entry point for real-time CAI feed events via Pub/Sub Push.
