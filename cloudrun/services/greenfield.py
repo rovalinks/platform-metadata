@@ -107,12 +107,16 @@ class GreenfieldService:
                 self._record_execution(audit_event, resource.asset_type, "COMPLIANT", int((time.perf_counter() - start) * 1000))
                 return {"status": "compliant"}
 
-            # 4. Remediation
-            exec_start = time.perf_counter()
-            labels = self.governance.expected_labels(resource.project) if self.compliance.capability.supports_labels(resource.asset_type) else {}
-            tags = {} if self.compliance.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
-            
-            result = self.executor.execute_resource(resource, labels, tags)
+            # 4. Remediation (Replace Step 4 in process method)
+            if not compliance_results[0].compliant:
+                # Use only the missing or incorrect labels for the remediation
+                keys_to_fix = compliance_results[0].missing_labels + compliance_results[0].incorrect_labels
+                expected_all = self.governance.expected_labels(resource.project)
+                
+                # Create a subset dictionary containing only the fields that need fixing
+                labels_to_apply = {k: expected_all[k] for k in keys_to_fix if k in expected_all}
+                
+                result = self.executor.execute_resource(resource, labels_to_apply, {})
             
             duration_ms = int((time.perf_counter() - start) * 1000)
             self._record_execution(audit_event, resource.asset_type, "SUCCESS", duration_ms)
