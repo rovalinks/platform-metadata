@@ -1,5 +1,7 @@
 import logging
 from flask import jsonify
+import base64
+import json
 from models.audit_log_event import AuditLogEvent
 from services.classification import ClassificationService
 from services.adapter import AdapterService
@@ -24,14 +26,13 @@ def handle_greenfield_event(payload: dict):
     Handles the raw Audit Log payload from Pub/Sub.
     """
     try:
-        # 1. Extract Audit Log fields from the protoPayload
+        # 1. Parse the Pub/Sub message
         message = payload.get("message", {})
-        import base64
-        import json
         raw_data = json.loads(base64.b64decode(message.get("data")).decode("utf-8"))
         proto = raw_data.get("protoPayload", {})
         
-        event = AuditLogEvent(
+        # Define audit_event here so it is available for the classifier
+        audit_event = AuditLogEvent(
             service_name=proto.get("serviceName"),
             method_name=proto.get("methodName"),
             resource_name=proto.get("resourceName"),
@@ -39,19 +40,22 @@ def handle_greenfield_event(payload: dict):
             location=raw_data.get("resource", {}).get("labels", {}).get("zone")
         )
 
-        # 2. Classify the event into a Resource
-        resource_event = classification.classify(event)
+        # 2. Classify the event
+        resource_event = classification.classify(audit_event)
         
-        # 3. Fetch full resource and enrich with labels
+        # 3. Fetch full resource
         client = adapters.client_for(resource_event.asset_type)
-        resource = client.get(resource_event.resource_name)
+        resource = client.get(resource_event.resource_name) if hasattr(client, "get") else None
         
-        # 4. Check App Registry for auto_remediate=True
-        # Logic to find app_id from labels and check registry
+        if resource is None:
+            logger.warning(f"Resource {resource_event.resource_name} not found. Skipping.")
+            return jsonify({"status": "ignored", "reason": "resource_not_found"}), 200
+
+        # 4. Check App Registry for auto_remediate
         app_id = resource.labels.get("app_id")
         if not app_id:
             return jsonify({"status": "ignored", "reason": "no_app_id"}), 200
-
+        
         # 5. Evaluate and Enforce
         compliance_result = compliance.evaluate_resource(resource)
         if not compliance_result.compliant:
