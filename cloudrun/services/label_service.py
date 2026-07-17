@@ -1,8 +1,8 @@
 import logging
-from cloudrun.clients.compute import ComputeClient
+from clients.compute import ComputeClient
 # TODO: Uncomment these as you ensure they follow the same ResourceClient pattern
-# from cloudrun.clients.storage import StorageClient
-# from cloudrun.clients.sql import SQLClient
+# from clients.storage import StorageClient
+# from clients.sql import SQLClient
 
 logger = logging.getLogger(__name__)
 

@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import patch
-from cloudrun.handlers.enforce import enforce_compliance
-from cloudrun.models.resource_event import CAIEventPayload, Asset, AssetResource, ResourceData
+from handlers.enforce import enforce_compliance
+from models.resource_event import CAIEventPayload, Asset, AssetResource, ResourceData
 
 # 1. Patch the reporting function so we don't hit BigQuery during this test
-@patch('cloudrun.handlers.enforce.log_compliance_evaluation')
+@patch('handlers.enforce.log_compliance_evaluation')
 # 2. Patch the LabelService
-@patch('cloudrun.handlers.enforce.LabelService.update_labels')
+@patch('handlers.enforce.LabelService.update_labels')
 def test_enforce_compliance_safely_skips_terraform(mock_update_labels, mock_log_compliance):
     
     mock_event = CAIEventPayload(

@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, timezone
-from cloudrun.clients.bigquery import BigQueryClient
-from cloudrun.models.resource_event import CAIEventPayload
+from clients.bigquery import BigQueryClient
+from models.resource_event import CAIEventPayload
 
 logger = logging.getLogger(__name__)
 

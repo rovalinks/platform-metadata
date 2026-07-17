@@ -1,7 +1,7 @@
 import json
 import base64
 import pytest
-from cloudrun.utils.cloudevent_parser import parse_pubsub_message
+from utils.cloudevent_parser import parse_pubsub_message
 
 def test_parse_valid_cai_pubsub_message():
     """

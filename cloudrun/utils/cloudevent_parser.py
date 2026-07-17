@@ -1,6 +1,6 @@
 import json
 import base64
-from cloudrun.models.resource_event import CAIEventPayload
+from models.resource_event import CAIEventPayload
 
 def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
     """

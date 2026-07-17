@@ -1,7 +1,7 @@
 import logging
-from cloudrun.models.resource_event import CAIEventPayload
-from cloudrun.services.label_service import LabelService
-from cloudrun.services.reporting import log_compliance_evaluation # <-- Add this import
+from models.resource_event import CAIEventPayload
+from services.label_service import LabelService
+from services.reporting import log_compliance_evaluation # <-- Add this import
 
 logger = logging.getLogger(__name__)
 label_service = LabelService()

@@ -1,7 +1,7 @@
 import logging
 from flask import Request, jsonify
-from cloudrun.utils.cloudevent_parser import parse_pubsub_message
-from cloudrun.registry.reader import RegistryReader
+from utils.cloudevent_parser import parse_pubsub_message
+from registry.reader import RegistryReader
 
 logger = logging.getLogger(__name__)
 registry = RegistryReader()
