@@ -1,5 +1,5 @@
 from flask import jsonify, request
-from cloudrun.services.reporting import ReportingService
+from services.reporting import ReportingService
 
 def runs():
     scope = request.args.get("scope", "organization")
