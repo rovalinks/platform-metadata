@@ -95,6 +95,10 @@ class GreenfieldService:
             
             # 3. Compliance
             compliance_results = self.compliance.evaluate([resource])
+            logger.info(f"Compliance results for {resource.name}: {compliance_results[0].compliant}, "
+            f"Missing: {compliance_results[0].missing_labels}, "
+            f"Incorrect: {compliance_results[0].incorrect_labels}")
+            
             if not compliance_results:
                 self._record_execution(audit_event, resource.asset_type, "SKIPPED", int((time.perf_counter() - start) * 1000))
                 return {"status": "skipped"}
