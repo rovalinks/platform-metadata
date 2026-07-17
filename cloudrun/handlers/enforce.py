@@ -1,7 +1,7 @@
 import logging
 from models.resource_event import CAIEventPayload
 from services.label_service import LabelService
-from services.reporting import log_compliance_evaluation # <-- Add this import
+from services.reporting import log_compliance_evaluation
 
 logger = logging.getLogger(__name__)
 label_service = LabelService()
@@ -55,6 +55,6 @@ def enforce_compliance(event: CAIEventPayload, app_record: dict, violation_detai
     logger.warning(f"Auto-remediation approved and executing for {asset_name}!")
     # fix_resource_config(event, violation_detail)
 
-    # In enforce.py
-    def enforce():
-        return enforce_compliance()
+# In enforce.py
+def enforce():
+    return enforce_compliance(None, {}, "Manual enforcement triggered")
