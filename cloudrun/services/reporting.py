@@ -1,38 +1,40 @@
-from repositories.report_repository import ReportRepository
+import logging
+from datetime import datetime
+from cloudrun.clients.bigquery import BigQueryClient
+from cloudrun.models.resource_event import CAIEventPayload
 
-class ReportingService:
-    """Provides governance reporting."""
+logger = logging.getLogger(__name__)
 
-    def __init__(self):
-        self.repository = ReportRepository()
+# Initialize your custom BigQuery client
+bq_client = BigQueryClient()
 
-    def dashboard(self, scope="organization", project_id=None):
-        return self.repository.dashboard(scope, project_id)
+# These should ideally be set in your environment variables / config
+DATASET_ID = "governance_metrics"
+TABLE_ID = "compliance_log"
 
-    def compliance(self, scope: str = "organization", project_id: str | None = None):
-        """Returns compliance breakdown by resource type."""
-        return self.repository.compliance_breakdown(scope=scope, project_id=project_id)
-
-    def resources(self, scope: str = "organization", project_id: str | None = None, limit: int = 100):
-        """Returns a list of resources."""
-        return self.repository.resources(scope=scope, project_id=project_id, limit=limit)
-
-    def non_compliant(self, scope: str = "organization", project_id: str | None = None, limit: int = 100):
-        """Returns a list of non-compliant resources."""
-        return self.repository.non_compliant(scope=scope, project_id=project_id, limit=limit)
-
-    def metrics(self, scope: str = "organization", project_id: str | None = None):
-        return self.repository.metrics(scope=scope, project_id=project_id)
-
-    def runs(self, scope: str = "organization", project_id: str | None = None, limit: int = 100):
-        return self.repository.remediation_runs(scope=scope, project_id=project_id, limit=limit)
-
-    def run(self, run_id: str):
-        """Returns summary for a remediation run."""
-        return self.repository.remediation_run_summary(run_id)
-
-    def history(self, run_id: str):
-        return {
-            "run_id": run_id,
-            "resources": self.repository.execution_history(run_id),
+def log_compliance_evaluation(event: CAIEventPayload, app_record: dict, status: str, violation_detail: str = ""):
+    """
+    Streams the compliance evaluation result to BigQuery for dashboard reporting.
+    """
+    try:
+        # Construct the row matching your BigQuery schema
+        row_to_insert = {
+            "timestamp": datetime.utcnow().isoformat(),
+            "app_id": event.app_id,
+            "team_owner": app_record.get("owner", "unassigned"), # Pulled from the YAML registry
+            "resource_name": event.asset.name,
+            "resource_type": event.asset.assetType,
+            "provisioning_method": "terraform" if event.is_terraform_managed else "manual/cli",
+            "compliance_status": status,  # e.g., "COMPLIANT" or "VIOLATION"
+            "violation_detail": violation_detail
         }
+        
+        # Stream the data into BigQuery
+        # (Assuming your custom BigQuery client has a method like 'insert_rows' or 'stream_data')
+        bq_client.insert_rows(DATASET_ID, TABLE_ID, [row_to_insert])
+        
+        logger.info(f"Successfully logged {status} status for {event.asset.name} to BigQuery.")
+        
+    except Exception as e:
+        # We catch the exception so a reporting failure doesn't crash the actual enforcement loop
+        logger.error(f"Failed to write compliance log to BigQuery: {e}")

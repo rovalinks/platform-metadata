@@ -1,106 +1,27 @@
-from models.audit_log_event import AuditLogEvent
-from utils.logger import logger
+import json
+import base64
+from cloudrun.models.resource_event import CAIEventPayload
 
-
-class CloudEventParser:
+def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
     """
-    Converts a Google Cloud Event into the
-    internal AuditLogEvent model.
+    Parses a Pub/Sub envelope triggered by a Cloud Asset Inventory feed,
+    decodes the base64 data, and validates it against the CAIEventPayload model.
     """
-
-    @staticmethod
-    def parse(
-        event: dict,
-    ) -> AuditLogEvent:
-
-        payload = event.get(
-            "protoPayload",
-            {}
-        )
-
-        resource_name = payload.get(
-            "resourceName",
-            "",
-        )
-
-        service_name = payload.get(
-            "serviceName",
-            "",
-        )
-
-        method_name = payload.get(
-            "methodName",
-            "",
-        )
-
-        #
-        # Cloud SQL create events sometimes emit only the
-        # project as the resource name. Attempt to build
-        # the full instance resource.
-        #
-        if (
-            service_name == "cloudsql.googleapis.com"
-            and resource_name.count("/") == 1
-        ):
-
-            response = payload.get(
-                "response",
-                {}
-            )
-
-            request = payload.get(
-                "request",
-                {}
-            )
-
-            instance = (
-                response.get("name")
-                or response.get("instance")
-                or response.get("targetId")
-                or request.get("name")
-                or request.get("instance")
-            )
-
-            if instance:
-
-                resource_name = (
-                    f"{resource_name}/instances/{instance}"
-                )
-
-                logger.info(
-                    "Normalized Cloud SQL resource to %s",
-                    resource_name,
-                )
-            else:
-
-                logger.warning(
-                    "Unable to determine Cloud SQL instance name."
-                )
-
-        resource = event.get(
-            "resource",
-            {}
-        )
-
-        labels = resource.get(
-            "labels",
-            {}
-        )
-
-        return AuditLogEvent(
-
-            service_name=service_name,
-
-            method_name=method_name,
-
-            resource_name=resource_name,
-
-            project_id=labels.get(
-                "project_id",
-                "",
-            ),
-
-            location=labels.get(
-                "location",
-            ),
-        )
+    if not envelope or 'message' not in envelope:
+        raise ValueError("Invalid Pub/Sub envelope format: Missing 'message' key.")
+        
+    pubsub_message = envelope['message']
+    
+    if 'data' not in pubsub_message:
+        raise ValueError("Pub/Sub message is missing the 'data' payload.")
+        
+    try:
+        # Pub/Sub data is always base64 encoded
+        decoded_data = base64.b64decode(pubsub_message['data']).decode('utf-8')
+        raw_payload = json.loads(decoded_data)
+        
+        # Parse into our Pydantic CAI model
+        return CAIEventPayload(**raw_payload)
+        
+    except json.JSONDecodeError as e:
+        raise ValueError(f"Failed to parse decoded Pub/Sub data as JSON: {e}")
