@@ -54,3 +54,7 @@ def enforce_compliance(event: CAIEventPayload, app_record: dict, violation_detai
     # 3. Auto-Remediate (Only executes if opt-in is True AND TF label is absent)
     logger.warning(f"Auto-remediation approved and executing for {asset_name}!")
     # fix_resource_config(event, violation_detail)
+
+    # In enforce.py
+    def enforce():
+        return enforce_compliance()
