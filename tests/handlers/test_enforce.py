@@ -3,9 +3,11 @@ from unittest.mock import patch
 from cloudrun.handlers.enforce import enforce_compliance
 from cloudrun.models.resource_event import CAIEventPayload, Asset, AssetResource, ResourceData
 
-# Point the patch to the new LabelService class we just created
+# 1. Patch the reporting function so we don't hit BigQuery during this test
+@patch('cloudrun.handlers.enforce.log_compliance_evaluation')
+# 2. Patch the LabelService
 @patch('cloudrun.handlers.enforce.LabelService.update_labels')
-def test_enforce_compliance_safely_skips_terraform(mock_update_labels):
+def test_enforce_compliance_safely_skips_terraform(mock_update_labels, mock_log_compliance):
     
     mock_event = CAIEventPayload(
         asset=Asset(
@@ -24,12 +26,16 @@ def test_enforce_compliance_safely_skips_terraform(mock_update_labels):
     
     enforce_compliance(mock_event, mock_app_record, "Public IP detected")
     
-    # Assert the correct method was called
+    # Assert the correct method was called with ALL arguments
     mock_update_labels.assert_called_once_with(
         asset_name="//compute.googleapis.com/projects/my-project/zones/us-central1-a/instances/tf-instance",
+        asset_type="compute.googleapis.com/Instance",  # <-- ADDED THIS LINE
         labels={
             "compliance-status": "violation",
             "violation-detail": "Public IP detected",
             "action-required": "true"
         }
     )
+    
+    # Assert that the reporting function was also called
+    mock_log_compliance.assert_called_once()

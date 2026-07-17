@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from cloudrun.clients.bigquery import BigQueryClient
 from cloudrun.models.resource_event import CAIEventPayload
 
@@ -19,7 +19,7 @@ def log_compliance_evaluation(event: CAIEventPayload, app_record: dict, status: 
     try:
         # Construct the row matching your BigQuery schema
         row_to_insert = {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "app_id": event.app_id,
             "team_owner": app_record.get("owner", "unassigned"), # Pulled from the YAML registry
             "resource_name": event.asset.name,
