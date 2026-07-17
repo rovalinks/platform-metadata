@@ -1,5 +1,5 @@
 import logging
-from flask import Request, jsonify
+from flask import jsonify
 from utils.cloudevent_parser import parse_pubsub_message
 from registry.reader import RegistryReader
 
@@ -7,20 +7,18 @@ logger = logging.getLogger(__name__)
 registry = RegistryReader()
 
 def greenfield(payload):
-    # This acts as the wrapper to match what dispatcher.py expects
+    # This acts as the wrapper to call the logic
     return handle_greenfield_event(payload)
-    
-def handle_greenfield_event(request: Request):
+
+def handle_greenfield_event(payload: dict):
     """
-    Entry point for real-time CAI feed events via Pub/Sub Push.
+    Handles the parsed CAI event dictionary directly.
     """
     try:
-        envelope = request.get_json()
+        # 1. Parse the incoming Pub/Sub CAI event (payload is already the dict)
+        event = parse_pubsub_message(payload)
         
-        # 1. Parse the incoming Pub/Sub CAI event
-        event = parse_pubsub_message(envelope)
-        
-        # 2. Drop deletion events (the resource is already gone)
+        # 2. Drop deletion events
         if event.deleted:
             logger.info(f"Ignored asset deletion: {event.asset.name}")
             return jsonify({"status": "ignored", "reason": "deleted_asset"}), 200
@@ -38,9 +36,6 @@ def handle_greenfield_event(request: Request):
 
         # 5. Asset is registered! Route to compliance evaluation
         logger.info(f"Evaluating registered asset: {event.asset.name} (App: {event.app_id})")
-        
-        # TODO: Call your compliance and enforcement services here
-        # evaluate_compliance(event, app_record)
         
         return jsonify({"status": "processed"}), 200
 
