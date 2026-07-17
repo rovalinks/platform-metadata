@@ -1,47 +1,66 @@
 import logging
 from flask import jsonify
-from utils.cloudevent_parser import parse_pubsub_message
+from models.audit_log_event import AuditLogEvent
+from services.classification import ClassificationService
+from services.adapter import AdapterService
+from services.compliance import ComplianceService
+from services.governance import GovernanceService
+from services.executor import ExecutorService
 from registry.reader import RegistryReader
 
 logger = logging.getLogger(__name__)
+classification = ClassificationService()
+adapters = AdapterService()
+compliance = ComplianceService()
+governance = GovernanceService()
+executor = ExecutorService()
 registry = RegistryReader()
 
 def greenfield(payload):
-    # This acts as the wrapper to call the logic
     return handle_greenfield_event(payload)
 
 def handle_greenfield_event(payload: dict):
     """
-    Handles the parsed CAI event dictionary directly.
+    Handles the raw Audit Log payload from Pub/Sub.
     """
     try:
-        # 1. Parse the incoming Pub/Sub CAI event (payload is already the dict)
-        event = parse_pubsub_message(payload)
+        # 1. Extract Audit Log fields from the protoPayload
+        message = payload.get("message", {})
+        import base64
+        import json
+        raw_data = json.loads(base64.b64decode(message.get("data")).decode("utf-8"))
+        proto = raw_data.get("protoPayload", {})
         
-        # 2. Drop deletion events
-        if event.deleted:
-            logger.info(f"Ignored asset deletion: {event.asset.name}")
-            return jsonify({"status": "ignored", "reason": "deleted_asset"}), 200
+        event = AuditLogEvent(
+            service_name=proto.get("serviceName"),
+            method_name=proto.get("methodName"),
+            resource_name=proto.get("resourceName"),
+            project_id=proto.get("resourceName", "").split("/")[1] if "/projects/" in proto.get("resourceName", "") else "unknown",
+            location=raw_data.get("resource", {}).get("labels", {}).get("zone")
+        )
 
-        # 3. Check for the Application ID label
-        if not event.app_id:
-            logger.info(f"Ignored {event.asset.name}: No app_id label found.")
-            return jsonify({"status": "ignored", "reason": "missing_app_id"}), 200
-
-        # 4. Validate against the YAML App Registry
-        app_record = registry.get_application(event.app_id)
-        if not app_record:
-            logger.info(f"Ignored {event.asset.name}: App '{event.app_id}' is not in the registry.")
-            return jsonify({"status": "ignored", "reason": "unregistered_app"}), 200
-
-        # 5. Asset is registered! Route to compliance evaluation
-        logger.info(f"Evaluating registered asset: {event.asset.name} (App: {event.app_id})")
+        # 2. Classify the event into a Resource
+        resource_event = classification.classify(event)
         
-        return jsonify({"status": "processed"}), 200
+        # 3. Fetch full resource and enrich with labels
+        client = adapters.client_for(resource_event.asset_type)
+        resource = client.get(resource_event.resource_name)
+        
+        # 4. Check App Registry for auto_remediate=True
+        # Logic to find app_id from labels and check registry
+        app_id = resource.labels.get("app_id")
+        if not app_id:
+            return jsonify({"status": "ignored", "reason": "no_app_id"}), 200
 
-    except ValueError as e:
-        logger.warning(f"Payload validation error: {e}")
-        return jsonify({"error": str(e)}), 400
+        # 5. Evaluate and Enforce
+        compliance_result = compliance.evaluate_resource(resource)
+        if not compliance_result.compliant:
+            labels = governance.expected_labels(resource.project)
+            executor.execute_resource(resource, labels, {})
+            return jsonify({"status": "remediated"}), 200
+
+        return jsonify({"status": "compliant"}), 200
+
     except Exception as e:
-        logger.exception("Unexpected error processing CAI event")
-        return jsonify({"error": "Internal Server Error"}), 500
+        logger.exception("Error processing Audit Log event")
+        return jsonify({"error": str(e)}), 500

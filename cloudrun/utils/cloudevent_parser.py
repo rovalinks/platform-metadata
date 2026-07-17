@@ -1,32 +1,21 @@
 import json
 import base64
-import logging
-from models.resource_event import CAIEventPayload
+from models.audit_log_event import AuditLogEvent
 
-def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
+def parse_pubsub_message(envelope: dict) -> AuditLogEvent:
     """
-    Parses a Pub/Sub envelope triggered by a Cloud Asset Inventory feed,
-    decodes the base64 data, and validates it against the CAIEventPayload model.
+    Parses a Pub/Sub envelope containing a Cloud Audit Log event.
     """
-    logging.info(f"DEBUG_PAYLOAD: {envelope}")
-
     if not envelope or 'message' not in envelope:
-        raise ValueError("Invalid Pub/Sub envelope format: Missing 'message' key.")
+        raise ValueError("Invalid Pub/Sub envelope format.")
         
-    pubsub_message = envelope['message']
+    data = json.loads(base64.b64decode(envelope['message']['data']).decode('utf-8'))
+    proto = data.get("protoPayload", {})
     
-    if 'data' not in pubsub_message:
-        raise ValueError("Pub/Sub message is missing the 'data' payload.")
-        
-    try:
-        decoded_data = base64.b64decode(pubsub_message['data']).decode('utf-8')
-        raw_payload = json.loads(decoded_data)
-        return CAIEventPayload(**raw_payload)
-    except json.JSONDecodeError as e:
-        raise ValueError(f"Failed to parse decoded Pub/Sub data as JSON: {e}")
-
-# THIS MUST BE AT THE ROOT LEVEL (NOT INDENTED)
-class CloudEventParser:
-    @staticmethod
-    def parse(event: dict):
-        return parse_pubsub_message(event)
+    return AuditLogEvent(
+        service_name=data.get("serviceName"),
+        method_name=proto.get("methodName"),
+        resource_name=proto.get("resourceName"),
+        project_id=data.get("resource", {}).get("labels", {}).get("project_id", "unknown"),
+        location=data.get("resource", {}).get("labels", {}).get("zone")
+    )
