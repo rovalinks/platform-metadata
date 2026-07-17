@@ -4,7 +4,7 @@ import json
 from google.api_core.exceptions import NotFound
 
 from utils.logger import logger
-from utils.cloudevent_parser import CloudEventParser
+from utils.cloudevent_parser import CloudEventParser # Now this will work!
 
 from services.adapter import AdapterService
 from services.capability import CapabilityService
@@ -14,7 +14,6 @@ from services.discovery import DiscoveryService
 from services.executor import ExecutorService
 from services.governance import GovernanceService
 from repositories.execution_repository import ExecutionRepository
-
 
 class GreenfieldService:
     """

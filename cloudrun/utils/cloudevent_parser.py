@@ -3,9 +3,6 @@ import base64
 from models.audit_log_event import AuditLogEvent
 
 def parse_pubsub_message(envelope: dict) -> AuditLogEvent:
-    """
-    Parses a Pub/Sub envelope containing a Cloud Audit Log event.
-    """
     if not envelope or 'message' not in envelope:
         raise ValueError("Invalid Pub/Sub envelope format.")
         
@@ -19,3 +16,8 @@ def parse_pubsub_message(envelope: dict) -> AuditLogEvent:
         project_id=data.get("resource", {}).get("labels", {}).get("project_id", "unknown"),
         location=data.get("resource", {}).get("labels", {}).get("zone")
     )
+
+class CloudEventParser:
+    @staticmethod
+    def parse(event: dict):
+        return parse_pubsub_message(event)
