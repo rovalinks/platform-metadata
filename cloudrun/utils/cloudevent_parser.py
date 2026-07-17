@@ -16,12 +16,14 @@ def parse_pubsub_message(envelope: dict) -> CAIEventPayload:
         raise ValueError("Pub/Sub message is missing the 'data' payload.")
         
     try:
-        # Pub/Sub data is always base64 encoded
         decoded_data = base64.b64decode(pubsub_message['data']).decode('utf-8')
         raw_payload = json.loads(decoded_data)
-        
-        # Parse into our Pydantic CAI model
         return CAIEventPayload(**raw_payload)
-        
     except json.JSONDecodeError as e:
         raise ValueError(f"Failed to parse decoded Pub/Sub data as JSON: {e}")
+
+# THIS MUST BE AT THE ROOT LEVEL (NOT INDENTED)
+class CloudEventParser:
+    @staticmethod
+    def parse(event: dict):
+        return parse_pubsub_message(event)
