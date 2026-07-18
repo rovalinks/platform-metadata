@@ -50,6 +50,11 @@ class ExecutorService:
         )[0]
 
     def _execute_single_action(self, action):
+        
+        if config.DRY_RUN:
+            logger.info("[DRY RUN] Bypassing label application for %s", action["resource"])
+            return {"resource": action["resource"], "status": "updated"}       
+        
         client = self.adapters.client_for(action["asset_type"])
         if client is None:
             return {"resource": action["resource"], "status": "unsupported"}
