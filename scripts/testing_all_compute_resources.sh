@@ -10,9 +10,6 @@ ZONE="europe-west2-a"
 NETWORK="default"
 PREFIX="test-gov"
 
-echo "Setting project to $PROJECT..."
-gcloud config set project $PROJECT
-
 echo "Ensuring Compute Engine API is enabled..."
 gcloud services enable compute.googleapis.com
 
@@ -79,6 +76,7 @@ gcloud compute forwarding-rules create $PREFIX-forwarding-rule \
     --region=$REGION \
     --target-vpn-gateway=$PREFIX-target-vpn \
     --ip-protocol=ESP \
+    --address=$PREFIX-address \
     --project=$PROJECT
 
 # 10. VpnGateway (HA VPN)
@@ -94,7 +92,7 @@ gcloud compute external-vpn-gateways create $PREFIX-ext-vpn \
     --interfaces 0=8.8.8.8 \
     --project=$PROJECT
 
-# 12. VpnTunnel (Depends on HA VPN, External VPN, and Router)
+# 12. VpnTunnel (Needs a shared secret)
 echo "Creating VPN Tunnel..."
 gcloud compute vpn-tunnels create $PREFIX-tunnel \
     --region=$REGION \
@@ -103,6 +101,7 @@ gcloud compute vpn-tunnels create $PREFIX-tunnel \
     --router=$PREFIX-router \
     --vpn-gateway=$PREFIX-ha-vpn \
     --interface=0 \
+    --shared-secret="secret12345" \
     --project=$PROJECT
 
 echo "=============================================================================="

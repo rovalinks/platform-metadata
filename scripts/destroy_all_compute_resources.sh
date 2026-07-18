@@ -9,9 +9,6 @@ REGION="europe-west2"
 ZONE="europe-west2-a"
 PREFIX="test-gov"
 
-echo "Setting project to $PROJECT..."
-gcloud config set project $PROJECT
-
 # 12. VpnTunnel
 echo "Deleting VPN Tunnel..."
 gcloud compute vpn-tunnels delete $PREFIX-tunnel \

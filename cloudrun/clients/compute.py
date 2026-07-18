@@ -152,6 +152,20 @@ class ComputeClient(ResourceClient):
     def apply_labels(self, res, labels: dict):
         info = self._parse_resource_url(res.name)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+
+        # --- ROUTER OVERRIDE START ---
+        if entry and entry.get("client_attr") == "routers":
+            # Assuming 'res' is the object with a .labels property
+            res.labels = labels
+            self.routers.patch(
+                project=info["project"],
+                region=info["scope_value"],
+                router=info["name"],
+                router_resource=res
+            )
+            return True
+        # --- ROUTER OVERRIDE END ---
+        
         if not entry or not entry.get("set_labels_request_cls"): return True
         client = getattr(self, entry["client_attr"], None)
         meth = getattr(client, entry["set_labels_method"])
