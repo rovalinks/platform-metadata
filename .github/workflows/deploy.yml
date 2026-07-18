@@ -3,7 +3,7 @@ name: Deploy Metadata Governance
 on:
   push:
     branches:
-      - main
+      - label_governance
     paths:
       - "cloudrun/**"
       - "Dockerfile"
