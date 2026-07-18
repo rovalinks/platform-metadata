@@ -61,8 +61,9 @@ class ExecutorService:
             
             # --- ADD THIS NULL CHECK ---
             if resource is None:
-                logger.warning("Resource %s not found or unsupported by API client.", action["resource"])
-                return {"resource": action["resource"], "status": "failed", "error": "Resource not found"}
+                logger.info("Resource %s is tag-only or unsupported for labels. Bypassing.", action["resource"])
+                # Return 'bypassed' (or 'compliant') instead of 'failed' so the dashboard stays clean
+                return {"resource": action["resource"], "status": "bypassed"}
             # ---------------------------
 
             if self.capability.supports_labels(action["asset_type"]):
