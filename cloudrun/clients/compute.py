@@ -153,18 +153,26 @@ class ComputeClient(ResourceClient):
         info = self._parse_resource_url(res.name)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
 
-        # --- ROUTER OVERRIDE START ---
-        if entry and entry.get("client_attr") == "routers":
-            # Assuming 'res' is the object with a .labels property
-            res.labels = labels
+        # --- ROUTER OVERRIDE ---
+        if entry["client_attr"] == "routers":
+            from google.cloud import compute_v1
+            
+            parts = resource.name.split('/')
+            project_id = parts[parts.index("projects") + 1]
+            region = parts[parts.index("regions") + 1]
+            router_name = parts[-1]
+            
+            # Construct the exact protobuf message GCP expects
+            router_patch = compute_v1.Router(labels=final_labels)
+            
             self.routers.patch(
-                project=info["project"],
-                region=info["scope_value"],
-                router=info["name"],
-                router_resource=res
+                project=project_id,
+                region=region,
+                router=router_name,
+                router_resource=router_patch
             )
-            return True
-        # --- ROUTER OVERRIDE END ---
+            return
+        # -----------------------
         
         if not entry or not entry.get("set_labels_request_cls"): return True
         client = getattr(self, entry["client_attr"], None)
