@@ -41,6 +41,8 @@ class ComputeClassifier(ResourceClassifier):
         ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
+        ("routers", "regions"): {"asset_type": "compute.googleapis.com/Router", "client_attr": "routers", "get_arg": "router", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetVpnGateways", "regions"): {"asset_type": "compute.googleapis.com/TargetVpnGateway", "client_attr": "target_vpn_gateways", "get_arg": "target_vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
     }
 
     def _resolve_key(self, event: AuditLogEvent):

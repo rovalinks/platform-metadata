@@ -17,6 +17,14 @@ class ComputeClient(ResourceClient):
         ("addresses", "global"): {"asset_type": "compute.googleapis.com/Address", "client_attr": "global_addresses", "get_arg": "address", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         ("forwardingRules", "regions"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         ("forwardingRules", "global"): {"asset_type": "compute.googleapis.com/ForwardingRule", "client_attr": "global_forwarding_rules", "get_arg": "forwarding_rule", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("snapshots", "global"): {"asset_type": "compute.googleapis.com/Snapshot", "client_attr": "snapshots", "get_arg": "snapshot", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("machineImages", "global"): {"asset_type": "compute.googleapis.com/MachineImage", "client_attr": "machine_images", "get_arg": "machine_image", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
+        ("routers", "regions"): {"asset_type": "compute.googleapis.com/Router", "client_attr": "routers", "get_arg": "router", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("targetVpnGateways", "regions"): {"asset_type": "compute.googleapis.com/TargetVpnGateway", "client_attr": "target_vpn_gateways", "get_arg": "target_vpn_gateway", "set_arg": "resource", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
+        ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_arg": "resource", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
 
         # ("networkEndpointGroups", "zones"): {"asset_type": "compute.googleapis.com/NetworkEndpointGroup", "client_attr": "network_endpoint_groups", "get_arg": "network_endpoint_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
         # ("instanceGroups", "zones"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.ZoneSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "zone_set_labels_request_resource"},
@@ -29,18 +37,12 @@ class ComputeClient(ResourceClient):
         # ("urlMaps", "regions"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "region_url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         # ("targetHttpProxies", "regions"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "region_target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         # ("instanceGroups", "regions"): {"asset_type": "compute.googleapis.com/InstanceGroup", "client_attr": "region_instance_groups", "get_arg": "instance_group", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        # ("vpnTunnels", "regions"): {"asset_type": "compute.googleapis.com/VpnTunnel", "client_attr": "vpn_tunnels", "get_arg": "vpn_tunnel", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
-        # ("vpnGateways", "regions"): {"asset_type": "compute.googleapis.com/VpnGateway", "client_attr": "vpn_gateways", "get_arg": "vpn_gateway", "set_labels_request_cls": compute_v1.RegionSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "region_set_labels_request_resource"},
         # ("healthChecks", "global"): {"asset_type": "compute.googleapis.com/HealthCheck", "client_attr": "health_checks", "get_arg": "health_check", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         # ("backendServices", "global"): {"asset_type": "compute.googleapis.com/BackendService", "client_attr": "backend_services", "get_arg": "backend_service", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},  
         # ("sslCertificates", "global"): {"asset_type": "compute.googleapis.com/SslCertificate", "client_attr": "ssl_certificates", "get_arg": "ssl_certificate", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         # ("targetHttpsProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpsProxy", "client_attr": "target_https_proxies", "get_arg": "target_https_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         # ("urlMaps", "global"): {"asset_type": "compute.googleapis.com/UrlMap", "client_attr": "url_maps", "get_arg": "url_map", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        # ("snapshots", "global"): {"asset_type": "compute.googleapis.com/Snapshot", "client_attr": "snapshots", "get_arg": "snapshot", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         # ("targetHttpProxies", "global"): {"asset_type": "compute.googleapis.com/TargetHttpProxy", "client_attr": "target_http_proxies", "get_arg": "target_http_proxy", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        # ("machineImages", "global"): {"asset_type": "compute.googleapis.com/MachineImage", "client_attr": "machine_images", "get_arg": "machine_image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        # ("images", "global"): {"asset_type": "compute.googleapis.com/Image", "client_attr": "images", "get_arg": "image", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
-        # ("externalVpnGateways", "global"): {"asset_type": "compute.googleapis.com/ExternalVpnGateway", "client_attr": "external_vpn_gateways", "get_arg": "external_vpn_gateway", "set_labels_request_cls": compute_v1.GlobalSetLabelsRequest, "set_labels_method": "set_labels", "set_labels_arg_name": "global_set_labels_request_resource"},
         # ("networks", "global"): {"asset_type": "compute.googleapis.com/Network", "client_attr": "networks", "get_arg": "network", "set_labels_request_cls": None, "set_labels_method": None, "set_labels_arg_name": None},
     }
     
@@ -56,23 +58,23 @@ class ComputeClient(ResourceClient):
         self.addresses = compute_v1.AddressesClient()
         self.global_addresses = compute_v1.GlobalAddressesClient()
         self.forwarding_rules = compute_v1.ForwardingRulesClient()
-        self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient() 
+        self.global_forwarding_rules = compute_v1.GlobalForwardingRulesClient()
+        self.snapshots = compute_v1.SnapshotsClient()
+        self.images = compute_v1.ImagesClient()
+        self.machine_images = compute_v1.MachineImagesClient()
+        self.routers = compute_v1.RoutersClient()
+        self.vpn_gateways = compute_v1.VpnGatewaysClient()
+        self.vpn_tunnels = compute_v1.VpnTunnelsClient()
+        self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
+        self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient() 
 
 
         # self.resource_policies = compute_v1.ResourcePoliciesClient()
-        # self.snapshots = compute_v1.SnapshotsClient()
-        # self.images = compute_v1.ImagesClient()
-        # self.machine_images = compute_v1.MachineImagesClient()
         # self.networks = compute_v1.NetworksClient()
         # self.subnetworks = compute_v1.SubnetworksClient()
         # self.firewalls = compute_v1.FirewallsClient()
-        # self.routers = compute_v1.RoutersClient()
         # self.network_attachments = compute_v1.NetworkAttachmentsClient()
         # self.service_attachments = compute_v1.ServiceAttachmentsClient()
-        # self.vpn_gateways = compute_v1.VpnGatewaysClient()
-        # self.vpn_tunnels = compute_v1.VpnTunnelsClient()
-        # self.target_vpn_gateways = compute_v1.TargetVpnGatewaysClient()
-        # self.external_vpn_gateways = compute_v1.ExternalVpnGatewaysClient()
         # self.packet_mirrorings = compute_v1.PacketMirroringsClient()
         # self.target_pools = compute_v1.TargetPoolsClient()
         # self.ssl_certificates = compute_v1.SslCertificatesClient()
