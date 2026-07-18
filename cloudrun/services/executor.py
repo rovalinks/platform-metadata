@@ -50,17 +50,21 @@ class ExecutorService:
         )[0]
 
     def _execute_single_action(self, action):
-        
-        if config.DRY_RUN:
-            logger.info("[DRY RUN] Bypassing label application for %s", action["resource"])
-            return {"resource": action["resource"], "status": "updated"}       
-        
         client = self.adapters.client_for(action["asset_type"])
         if client is None:
             return {"resource": action["resource"], "status": "unsupported"}
+        
         logger.info("Applying remediation to %s using %s", action["resource"], client.__class__.__name__)
+        
         try:
             resource = client.get(action["resource"])
+            
+            # --- ADD THIS NULL CHECK ---
+            if resource is None:
+                logger.warning("Resource %s not found or unsupported by API client.", action["resource"])
+                return {"resource": action["resource"], "status": "failed", "error": "Resource not found"}
+            # ---------------------------
+
             if self.capability.supports_labels(action["asset_type"]):
                 final_labels = self.ownership.build(
                     existing=resource.labels,
@@ -70,6 +74,7 @@ class ExecutorService:
                 client.apply_labels(resource, final_labels)
             elif self.capability.supports_tags(action["asset_type"]):
                 self.tag_service.apply_tags(resource_name=resource.name, desired_tags=action["tags"], managed_tags=[])
+            
             logger.info("Successfully updated %s", action["resource"])
             return {"resource": action["resource"], "status": "updated"}
         except Exception as error:
