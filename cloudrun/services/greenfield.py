@@ -107,7 +107,7 @@ class GreenfieldService:
                 labels = self.governance.expected_labels(resource.project) if self.capability.supports_labels(resource.asset_type) else {}
                 tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
                 
-                result = self.executor.execute_single_action({
+                result = self.executor._execute_single_action({
                     "resource": resource.name,
                     "asset_type": resource.asset_type,
                     "labels": labels,
