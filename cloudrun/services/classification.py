@@ -8,12 +8,13 @@ class ClassificationService:
             "compute.googleapis.com": ComputeExtractor(),
         }
 
-    def classify(self, audit_event) -> list:
-        """Routes the event to the correct generic extractor."""
-        extractor = self.extractors.get(audit_event.service_name)
+    def classify(self, audit_event: dict) -> list:
+        """Routes the event dictionary to the correct generic extractor."""
+        service_name = audit_event.get("service_name")
+        extractor = self.extractors.get(service_name)
         
         if not extractor:
-            logger.warning(f"No extractor registered for service: {audit_event.service_name}")
+            logger.warning(f"No extractor registered for service: {service_name}")
             return []
             
         return extractor.extract(audit_event)
