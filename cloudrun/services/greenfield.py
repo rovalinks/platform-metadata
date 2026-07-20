@@ -34,7 +34,7 @@ class GreenfieldService:
 
     def _record_execution(
         self,
-        audit_event,
+        audit_event: dict,
         asset_type: str,
         status: str,
         duration_ms: int,
@@ -42,20 +42,19 @@ class GreenfieldService:
     ):
         self.execution_repository.save(
             run_id="GREENFIELD",
-            project_id=audit_event.project_id,
+            project_id=audit_event.get("project_id"),
             asset_type=asset_type,
-            resource_name=audit_event.resource_name,
-            execution_mode="GREENFIELD",
-            service_name=audit_event.service_name,
-            method_name=audit_event.method_name,
-            duration_ms=duration_ms,
+            resource_name=audit_event.get("resource_name", "UNKNOWN"),
             status=status,
-            error_message=error_message,
+            execution_mode="GREENFIELD",
+            duration_ms=duration_ms,
+            error_message=error_message
         )
 
-    def process(self, audit_event):
+    def process(self, audit_event: dict):
         import time
         start = time.perf_counter()
+        project_id = audit_event.get("project_id")
         
         try:
             # Now returns a list containing parent + all implicit children
@@ -69,7 +68,7 @@ class GreenfieldService:
 
             for resource in resources:
                 resource_start = time.perf_counter()
-                resource.project = audit_event.project_id
+                resource.project = project_id
                 
                 # Check Compliance
                 compliance_results = self.compliance.evaluate([resource])
@@ -100,6 +99,7 @@ class GreenfieldService:
 
         except Exception as exc:
             duration_ms = int((time.perf_counter() - start) * 1000)
+            from utils.logger import logger
             logger.exception("Greenfield execution failed")
             self._record_execution(audit_event, "UNKNOWN", "FAILED", duration_ms, str(exc))
             return {"status": "failed", "error": str(exc)}
