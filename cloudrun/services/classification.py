@@ -6,6 +6,7 @@ class ClassificationService:
         # Register new GCP services here as you expand
         self.extractors = {
             "compute.googleapis.com": ComputeExtractor(),
+            "bigquery.googleapis.com": BigQueryExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:
