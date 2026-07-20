@@ -15,6 +15,11 @@ SUPPORTED_LABEL_RESOURCES = {
     "compute.googleapis.com/Address",
     "compute.googleapis.com/MachineImage",
 
+    # BIGQUERY
+    "bigquery.googleapis.com/Dataset",
+    "bigquery.googleapis.com/Table",
+    "bigquery.googleapis.com/Model",
+
 
     # "storage.googleapis.com/Bucket",
     # "bigquery.googleapis.com/Dataset",

@@ -1,226 +1,69 @@
 from google.cloud import bigquery
-
+from utils.logger import logger
 import config
 
-from clients.base import ResourceClient
-from models.resource import Resource
-from utils.bigquery import (
-    parse_dataset_name,
-    parse_table_name,
-)
-
-
-class BigQueryClient(ResourceClient):
-    """BigQuery Dataset and Table resource adapter."""
-
+class BigQueryClient:
     def __init__(self):
-
         self.client = bigquery.Client()
+        self.dry_run = config.DRY_RUN
 
-    def supports(
-        self,
-        asset_type: str,
-    ):
-
-        return asset_type in (
-            "bigquery.googleapis.com/Dataset",
-            "bigquery.googleapis.com/Table",
-        )
-
-    def labels(
-        self,
-        resource,
-    ):
-
-        if "/datasets/" in resource.name and "/tables/" not in resource.name:
-            info = parse_dataset_name(
-                resource.name
-            )
-
-            dataset = self.client.get_dataset(
-                f"{info['project']}."
-                f"{info['dataset']}"
-            )
-
-            return dict(
-                dataset.labels or {}
-            )
-
-        info = parse_table_name(
-            resource.name
-        )
-
-        table = self.client.get_table(
-            f"{info['project']}."
-            f"{info['dataset']}."
-            f"{info['table']}"
-        )
-
-        return dict(
-            table.labels or {}
-        )
-
-    def get(
-        self,
-        resource_name: str,
-    ) -> Resource:
-        """
-        Retrieves a BigQuery Dataset or Table and returns
-        the platform Resource model.
-        """
-
-        #
-        # Table
-        #
-        if "/tables/" in resource_name:
-
-            info = parse_table_name(
-                resource_name
-            )
-
-            table = self.client.get_table(
-                f"{info['project']}."
-                f"{info['dataset']}."
-                f"{info['table']}"
-            )
-
-            return Resource(
-
-                asset_type="bigquery.googleapis.com/Table",
-
-                name=resource_name,
-
-                project=info["project"],
-
-                location=table.location,
-
-                labels=dict(
-                    table.labels or {}
-                ),
-
-                tags={},
-
-            )
-
-        #
-        # Dataset
-        #
-        info = parse_dataset_name(
-            resource_name
-        )
-
-        dataset = self.client.get_dataset(
-            f"{info['project']}."
-            f"{info['dataset']}"
-        )
-
-        return Resource(
-
-            asset_type="bigquery.googleapis.com/Dataset",
-
-            name=resource_name,
-
-            project=info["project"],
-
-            location=dataset.location,
-
-            labels=dict(
-                dataset.labels or {}
-            ),
-
-            tags={},
-
-        )
-
-    def apply_labels(
-        self,
-        resource,
-        labels: dict,
-    ):
-
-        if "/datasets/" in resource.name and "/tables/" not in resource.name:
-
-            info = parse_dataset_name(
-                resource.name
-            )
-
-            dataset = self.client.get_dataset(
-                f"{info['project']}."
-                f"{info['dataset']}"
-            )
-
-            existing = dict(
-                dataset.labels or {}
-            )
-
-            if config.PRESERVE_EXISTING_LABELS:
-
-                merged = existing.copy()
-
-                for key, value in labels.items():
-
-                    if key not in merged:
-
-                        merged[key] = value
-
-            else:
-
-                merged = existing.copy()
-
-                merged.update(labels)
-
-            if merged == existing:
-
-                return True
-
-            dataset.labels = merged
-
-            self.client.update_dataset(
-                dataset,
-                ["labels"],
-            )
-
-            return True
-
-        info = parse_table_name(
-            resource.name
-        )
-
-        table = self.client.get_table(
-            f"{info['project']}."
-            f"{info['dataset']}."
-            f"{info['table']}"
-        )
-
-        existing = dict(
-            table.labels or {}
-        )
-
-        if config.PRESERVE_EXISTING_LABELS:
-
-            merged = existing.copy()
-
-            for key, value in labels.items():
-
-                if key not in merged:
-
-                    merged[key] = value
-
+    def _parse_resource_name(self, resource_url: str):
+        """Converts CAI/Eventarc URL to BQ SDK format (project.dataset.table)"""
+        parts = resource_url.replace("//bigquery.googleapis.com/", "").split("/")
+        
+        project = parts[parts.index("projects") + 1] if "projects" in parts else None
+        dataset = parts[parts.index("datasets") + 1] if "datasets" in parts else None
+        table = parts[parts.index("tables") + 1] if "tables" in parts else None
+        model = parts[parts.index("models") + 1] if "models" in parts else None
+        
+        if table:
+            return f"{project}.{dataset}.{table}", "Table"
+        elif model:
+            return f"{project}.{dataset}.{model}", "Model"
         else:
+            return f"{project}.{dataset}", "Dataset"
 
-            merged = existing.copy()
+    def get(self, resource_name: str, asset_type: str) -> dict:
+        bq_id, res_type = self._parse_resource_name(resource_name)
+        
+        try:
+            if res_type == "Dataset":
+                dataset = self.client.get_dataset(bq_id)
+                return dataset.labels or {}
+            elif res_type in ["Table", "Model"]:
+                table = self.client.get_table(bq_id)
+                return table.labels or {}
+        except Exception as e:
+            logger.error(f"Failed to fetch BigQuery {res_type} {bq_id}: {e}")
+            raise
 
-            merged.update(labels)
-
-        if merged == existing:
-
+    def patch(self, resource_name: str, asset_type: str, expected_labels: dict, expected_tags: dict) -> bool:
+        if self.dry_run:
+            logger.info(f"[DRY RUN] Would patch BigQuery {asset_type} {resource_name} with {expected_labels}")
             return True
 
-        table.labels = merged
+        bq_id, res_type = self._parse_resource_name(resource_name)
 
-        self.client.update_table(
-            table,
-            ["labels"],
-        )
+        try:
+            if res_type == "Dataset":
+                dataset = self.client.get_dataset(bq_id)
+                dataset.labels = self._merge_labels(dataset.labels, expected_labels)
+                self.client.update_dataset(dataset, ["labels"])
+                
+            elif res_type in ["Table", "Model"]:
+                table = self.client.get_table(bq_id)
+                table.labels = self._merge_labels(table.labels, expected_labels)
+                self.client.update_table(table, ["labels"])
+                
+            logger.info(f"Successfully patched BigQuery {res_type} {bq_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to patch BigQuery {res_type} {bq_id}: {e}")
+            return False
 
-        return True
+    def _merge_labels(self, existing: dict, expected: dict) -> dict:
+        if not existing:
+            return expected
+        merged = existing.copy()
+        merged.update(expected)
+        return merged
