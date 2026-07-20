@@ -8,15 +8,59 @@ on:
       - "cloudrun/**"
       - "Dockerfile"
       - ".github/workflows/deploy.yml"
+  release:
+    types: [published] # Triggers the PROD deployment
 
 permissions:
   contents: read
   id-token: write
+  security-events: write # Required for uploading security scan results
 
 jobs:
-  deploy:
+  # ==========================================
+  # JOB 1: SECURITY CHECKS
+  # ==========================================
+  security-checks:
+    name: Security Scans
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.0
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Bandit (Python Security Scanner)
+        run: |
+          pip install bandit
+          
+      - name: Run Python Security Scan (Bandit)
+        run: |
+          # Fails the build if high-severity vulnerabilities are found in the Python code
+          bandit -r cloudrun/ -ll -ii
+
+      - name: Run Trivy Vulnerability Scanner (Filesystem)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          severity: 'CRITICAL,HIGH'
+
+  # ==========================================
+  # JOB 2: DEPLOY TO DEV
+  # ==========================================
+  deploy-dev:
+    name: Deploy to Dev
+    needs: security-checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev # Pulls DEV variables and secrets
+    
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4.2.0
@@ -33,33 +77,24 @@ jobs:
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Configure Docker
-        run: |
-          gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
+        run: gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
 
-      - name: Build Image
+      - name: Build & Push Image
         run: |
-          docker build \
-            -f Dockerfile \
-            -t "${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}" \
-            -t "${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest" \
-            .
-
-      - name: Push Image
-        run: |
-          docker push "${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:${{ github.sha }}"
-          docker push "${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest"
+          IMAGE_PATH="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}"
+          docker build -f Dockerfile -t "$IMAGE_PATH:${{ github.sha }}" -t "$IMAGE_PATH:latest" .
+          docker push "$IMAGE_PATH:${{ github.sha }}"
+          docker push "$IMAGE_PATH:latest"
 
       - name: Get Cloud Run URL
         id: service_url
         run: |
-          # 2>/dev/null || echo "" handles the very first deployment gracefully if the service doesn't exist yet
           URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
-            --project=${{ vars.PROJECT_ID }} \
-            --region=${{ vars.REGION }} \
-            --format="value(status.url)" 2>/dev/null || echo "")
+            --project=${{ vars.PROJECT_ID }} --region=${{ vars.REGION }} \
+            --format="value(status.url)" 2>/dev/null || echo "PENDING_FIRST_DEPLOY")
           echo "SERVICE_URL=$URL" >> $GITHUB_ENV
 
-      - name: Deploy Cloud Run
+      - name: Prepare Dynamic Environment Variables
         env:
           PROJECT_ID: ${{ vars.PROJECT_ID }}
           REGION: ${{ vars.REGION }}
@@ -68,14 +103,9 @@ jobs:
           BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
           TASK_QUEUE: ${{ vars.TASK_QUEUE }}
           SERVICE_ACCOUNT_EMAIL: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
-          PUBSUB_TOPIC: ${{ vars.PUBSUB_TOPIC }}
-          PUBSUB_SUBSCRIPTION: ${{ vars.PUBSUB_SUBSCRIPTION }}
-          EVENTARC_TRIGGER: ${{ vars.EVENTARC_TRIGGER }}
-          LOGGING_SINK: ${{ vars.LOGGING_SINK }}
           CLOUD_RUN_URL: ${{ env.SERVICE_URL }}
+          DRY_RUN: ${{ vars.DRY_RUN }} # Overrides base env.yaml dynamically!
         run: |
-          # Safely append pipeline variables to env.yaml using Python via process environment
-          # Using single quotes for python execution prevents shell parsing, escaping, and YAML indentation issues.
           python3 -c '
           import os
           content = ""
@@ -86,21 +116,114 @@ jobs:
           vars_to_append = [
               "PROJECT_ID", "REGION", "TAG_PARENT", "REGISTRY_BUCKET",
               "BIGQUERY_DATASET", "TASK_QUEUE", "SERVICE_ACCOUNT_EMAIL",
-              "PUBSUB_TOPIC", "PUBSUB_SUBSCRIPTION", "EVENTARC_TRIGGER",
-              "LOGGING_SINK", "CLOUD_RUN_URL"
+              "CLOUD_RUN_URL", "DRY_RUN"
           ]
 
           for key in vars_to_append:
               val = os.environ.get(key, "")
-              content += f"{key}: \"{val}\"\n"
+              if val: # Only append if not empty
+                  content += f"{key}: \"{val}\"\n"
 
-          # Ensure the cloudrun directory exists just in case
           os.makedirs("cloudrun", exist_ok=True)
           with open("cloudrun/env.yaml", "w") as f:
               f.write(content)
           '
 
-          # Deploy using only the env-vars-file
+      - name: Deploy Cloud Run
+        run: |
+          gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --region=${{ vars.REGION }} \
+            --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}:latest" \
+            --service-account=${{ secrets.SERVICE_ACCOUNT_EMAIL }} \
+            --env-vars-file=cloudrun/env.yaml \
+            --memory=1Gi \
+            --cpu=2 \
+            --timeout=900 \
+            --concurrency=80 \
+            --allow-unauthenticated
+
+  # ==========================================
+  # JOB 3: DEPLOY TO PROD
+  # ==========================================
+  deploy-prod:
+    name: Deploy to Prod
+    needs: security-checks
+    if: github.event_name == 'release' && github.event.action == 'published'
+    runs-on: ubuntu-latest
+    environment: prod # Pulls PROD variables and secrets
+    
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4.2.0
+        with:
+          fetch-depth: 1
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
+
+      - name: Setup Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & Push Image
+        run: |
+          IMAGE_PATH="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.IMAGE_NAME }}"
+          # Use github.ref_name to tag the container with the Release version (e.g. v1.0.0)
+          docker build -f Dockerfile -t "$IMAGE_PATH:${{ github.ref_name }}" -t "$IMAGE_PATH:latest" .
+          docker push "$IMAGE_PATH:${{ github.ref_name }}"
+          docker push "$IMAGE_PATH:latest"
+
+      - name: Get Cloud Run URL
+        id: service_url
+        run: |
+          URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} --region=${{ vars.REGION }} \
+            --format="value(status.url)" 2>/dev/null || echo "PENDING_FIRST_DEPLOY")
+          echo "SERVICE_URL=$URL" >> $GITHUB_ENV
+
+      - name: Prepare Dynamic Environment Variables
+        env:
+          PROJECT_ID: ${{ vars.PROJECT_ID }}
+          REGION: ${{ vars.REGION }}
+          TAG_PARENT: ${{ vars.TAG_PARENT }}
+          REGISTRY_BUCKET: ${{ vars.REGISTRY_BUCKET }}
+          BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
+          TASK_QUEUE: ${{ vars.TASK_QUEUE }}
+          SERVICE_ACCOUNT_EMAIL: ${{ secrets.SERVICE_ACCOUNT_EMAIL }}
+          CLOUD_RUN_URL: ${{ env.SERVICE_URL }}
+          DRY_RUN: ${{ vars.DRY_RUN }} 
+        run: |
+          python3 -c '
+          import os
+          content = ""
+          if os.path.exists("cloudrun/env.yaml"):
+              with open("cloudrun/env.yaml", "r") as f:
+                  content = f.read().rstrip() + "\n"
+
+          vars_to_append = [
+              "PROJECT_ID", "REGION", "TAG_PARENT", "REGISTRY_BUCKET",
+              "BIGQUERY_DATASET", "TASK_QUEUE", "SERVICE_ACCOUNT_EMAIL",
+              "CLOUD_RUN_URL", "DRY_RUN"
+          ]
+
+          for key in vars_to_append:
+              val = os.environ.get(key, "")
+              if val:
+                  content += f"{key}: \"{val}\"\n"
+
+          os.makedirs("cloudrun", exist_ok=True)
+          with open("cloudrun/env.yaml", "w") as f:
+              f.write(content)
+          '
+
+      - name: Deploy Cloud Run
+        run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
             --project=${{ vars.PROJECT_ID }} \
             --region=${{ vars.REGION }} \
