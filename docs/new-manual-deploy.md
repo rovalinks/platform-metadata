@@ -55,7 +55,7 @@ gcloud services enable \
 ### 1.2 Create BigQuery Dataset & Tables
 
 ```bash
-bq mk --location=$REGION -d $PROJECT_ID:metadata_governance_dataset
+bq mk --location=$REGION -d $PROJECT_ID:platform-metadata
 
 ```
 
