@@ -1,106 +1,66 @@
-from models.audit_log_event import AuditLogEvent
+import base64
+import json
 from utils.logger import logger
 
-
 class CloudEventParser:
-    """
-    Converts a Google Cloud Event into the
-    internal AuditLogEvent model.
-    """
+    """Parses incoming Eventarc/PubSub messages into a standard dictionary."""
 
     @staticmethod
-    def parse(
-        event: dict,
-    ) -> AuditLogEvent:
+    def parse(request_payload: dict) -> dict:
+        """
+        Unwraps the Pub/Sub message and extracts core audit fields.
+        Returns a dictionary to be passed to the ClassificationService.
+        """
+        try:
+            # 1. Unwrap the Pub/Sub base64 payload
+            message = request_payload.get("message", {})
+            data_b64 = message.get("data")
+            
+            if not data_b64:
+                logger.error("No data payload found in Pub/Sub message.")
+                return {}
 
-        payload = event.get(
-            "protoPayload",
-            {}
-        )
+            data_str = base64.b64decode(data_b64).decode("utf-8")
+            audit_log = json.loads(data_str)
 
-        resource_name = payload.get(
-            "resourceName",
-            "",
-        )
+            # 2. Extract the core protoPayload
+            proto_payload = audit_log.get("protoPayload", {})
+            
+            # 3. Extract the critical routing fields
+            service_name = proto_payload.get("serviceName")
+            method_name = proto_payload.get("methodName")
+            
+            # Org-level sinks sometimes put the resource name at the root, sometimes in protoPayload
+            resource_name = audit_log.get("resourceName") or proto_payload.get("resourceName", "UNKNOWN")
+            
+            # Extract project_id securely (Check labels first, then fallback to parsing the resource name)
+            project_id = None
+            resource_labels = audit_log.get("resource", {}).get("labels", {})
+            if "project_id" in resource_labels:
+                project_id = resource_labels["project_id"]
+            elif "projects/" in resource_name:
+                # Extract project_id from strings like "projects/my-project/zones/..."
+                parts = resource_name.split("/")
+                try:
+                    project_id = parts[parts.index("projects") + 1]
+                except ValueError:
+                    pass
 
-        service_name = payload.get(
-            "serviceName",
-            "",
-        )
+            if not project_id:
+                logger.error(f"Could not determine project_id from event. Resource: {resource_name}")
+                project_id = "UNKNOWN_PROJECT"
 
-        method_name = payload.get(
-            "methodName",
-            "",
-        )
+            logger.info(f"Parsed Event -> Service: {service_name}, Method: {method_name}, Project: {project_id}")
 
-        #
-        # Cloud SQL create events sometimes emit only the
-        # project as the resource name. Attempt to build
-        # the full instance resource.
-        #
-        if (
-            service_name == "cloudsql.googleapis.com"
-            and resource_name.count("/") == 1
-        ):
+            # 4. Return the standardized dictionary
+            return {
+                "service_name": service_name,
+                "method_name": method_name,
+                "resource_name": resource_name,
+                "project_id": project_id,
+                "raw_payload": audit_log # Pass the whole thing so Extractors can dig into it
+            }
 
-            response = payload.get(
-                "response",
-                {}
-            )
-
-            request = payload.get(
-                "request",
-                {}
-            )
-
-            instance = (
-                response.get("name")
-                or response.get("instance")
-                or response.get("targetId")
-                or request.get("name")
-                or request.get("instance")
-            )
-
-            if instance:
-
-                resource_name = (
-                    f"{resource_name}/instances/{instance}"
-                )
-
-                logger.info(
-                    "Normalized Cloud SQL resource to %s",
-                    resource_name,
-                )
-            else:
-
-                logger.warning(
-                    "Unable to determine Cloud SQL instance name."
-                )
-
-        resource = event.get(
-            "resource",
-            {}
-        )
-
-        labels = resource.get(
-            "labels",
-            {}
-        )
-
-        return AuditLogEvent(
-
-            service_name=service_name,
-
-            method_name=method_name,
-
-            resource_name=resource_name,
-
-            project_id=labels.get(
-                "project_id",
-                "",
-            ),
-
-            location=labels.get(
-                "location",
-            ),
-        )
+        except Exception as e:
+            logger.exception("Failed to parse CloudEvent payload.")
+            return {}
