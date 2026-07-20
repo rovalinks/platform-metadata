@@ -76,7 +76,7 @@ class GreenfieldService:
             "service_name": service_name,
             "method_name": proto.get("methodName"),
             "project_id": project_id,
-            "resource_name": audit_log.get("resourceName", "UNKNOWN"),
+            "resource_name": audit_log.get("resourceName") or proto.get("resourceName") or "UNKNOWN",
             "raw_payload": audit_log
         }
         
