@@ -1,5 +1,6 @@
 from utils.logger import logger
 from extractors.compute import ComputeExtractor
+from extractors.bigquery import BigQueryExtractor
 
 class ClassificationService:
     def __init__(self):
