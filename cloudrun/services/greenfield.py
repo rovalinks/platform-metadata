@@ -53,69 +53,53 @@ class GreenfieldService:
             error_message=error_message,
         )
 
-    def process(self, event: dict):
+    def process(self, audit_event):
+        import time
         start = time.perf_counter()
-        if isinstance(event, list):
-            event = event[0]
-
-        # =====================================================================
-        # PUBSUB PAYLOAD UNWRAPPER
-        # =====================================================================
-        raw_data = None
-        if isinstance(event, dict) and "message" in event and isinstance(event["message"], dict) and "data" in event["message"]:
-            raw_data = event["message"]["data"]
-        elif isinstance(event, dict) and "data" in event and isinstance(event["data"], dict) and "message" in event["data"] and isinstance(event["data"]["message"], dict) and "data" in event["data"]["message"]:
-            raw_data = event["data"]["message"]["data"]
-
-        if raw_data:
-            try:
-                decoded_payload = base64.b64decode(raw_data).decode("utf-8")
-                event = json.loads(decoded_payload)
-                logger.info("Successfully unwrapped and parsed incoming Pub/Sub CloudEvent.")
-            except Exception as exc:
-                logger.error("Failed to decode base64 Pub/Sub payload: %s", exc)
-
-        audit_event = CloudEventParser.parse(event)
-
+        
         try:
-            # 1. Classification
-            try:
-                resource_event = self.classification.classify(audit_event)
-            except ValueError as exc:
-                self._record_execution(audit_event, "UNSUPPORTED", "UNSUPPORTED", int((time.perf_counter() - start) * 1000), str(exc))
-                return {"status": "ignored"}
-
-            # 2. Retrieval
-            client = self.adapters.client_for(resource_event.asset_type)
-            resource = client.get(resource_event.resource_name) if hasattr(client, "get") else None
-            if not resource:
-                self._record_execution(audit_event, resource_event.asset_type, "NOT_FOUND", int((time.perf_counter() - start) * 1000))
-                return {"status": "not_found"}
-
-            resource.project = resource_event.project_id
+            # Now returns a list containing parent + all implicit children
+            resources = self.classification.classify(audit_event)
             
-            # 3. Compliance
-            compliance_results = self.compliance.evaluate([resource])
-            if not compliance_results:
-                self._record_execution(audit_event, resource.asset_type, "SKIPPED", int((time.perf_counter() - start) * 1000))
-                return {"status": "skipped"}
+            if not resources:
+                self._record_execution(audit_event, "UNKNOWN", "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
+                return {"status": "unsupported"}
 
-            if compliance_results[0].compliant:
-                self._record_execution(audit_event, resource.asset_type, "COMPLIANT", int((time.perf_counter() - start) * 1000))
-                return {"status": "compliant"}
+            batch_results = []
 
-            # 4. Remediation
-            exec_start = time.perf_counter()
-            labels = self.governance.expected_labels(resource.project) if self.compliance.capability.supports_labels(resource.asset_type) else {}
-            tags = {} if self.compliance.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
-            
-            result = self.executor.execute_resource(resource, labels, tags)
-            
-            duration_ms = int((time.perf_counter() - start) * 1000)
-            self._record_execution(audit_event, resource.asset_type, "SUCCESS", duration_ms)
-            return {"status": "remediated", "result": result}
+            for resource in resources:
+                resource_start = time.perf_counter()
+                resource.project = audit_event.project_id
+                
+                # Check Compliance
+                compliance_results = self.compliance.evaluate([resource])
+                if compliance_results and compliance_results[0].compliant:
+                    self._record_execution(audit_event, resource.asset_type, "COMPLIANT", int((time.perf_counter() - resource_start) * 1000))
+                    batch_results.append({"resource": resource.name, "status": "compliant"})
+                    continue
+
+                # Execute Remediation
+                labels = self.governance.expected_labels(resource.project) if self.capability.supports_labels(resource.asset_type) else {}
+                tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
+                
+                app_metadata = self.governance.get_application_for_resource(resource.project, resource)
+                if app_metadata:
+                    labels.update(self.governance._extract_labels(app_metadata, {}))
+                
+                result = self.executor.execute_single_action({
+                    "resource": resource.name,
+                    "asset_type": resource.asset_type,
+                    "labels": labels,
+                    "tags": tags
+                })
+                
+                self._record_execution(audit_event, resource.asset_type, "SUCCESS", int((time.perf_counter() - resource_start) * 1000))
+                batch_results.append({"resource": resource.name, "status": "remediated", "result": result})
+
+            return {"status": "processed", "results": batch_results}
 
         except Exception as exc:
             duration_ms = int((time.perf_counter() - start) * 1000)
+            logger.exception("Greenfield execution failed")
             self._record_execution(audit_event, "UNKNOWN", "FAILED", duration_ms, str(exc))
-            raise
+            return {"status": "failed", "error": str(exc)}
