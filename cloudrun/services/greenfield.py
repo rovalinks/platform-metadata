@@ -103,13 +103,9 @@ class GreenfieldService:
                     batch_results.append({"resource": resource.name, "status": "compliant"})
                     continue
 
-                # Remediate
+               # Remediate (Updated to match your exact governance.py)
                 labels = self.governance.expected_labels(resource.project) if self.capability.supports_labels(resource.asset_type) else {}
                 tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
-                
-                app_metadata = self.governance.get_application_for_resource(resource.project, resource)
-                if app_metadata:
-                    labels.update(self.governance._extract_labels(app_metadata, {}))
                 
                 result = self.executor.execute_single_action({
                     "resource": resource.name,
