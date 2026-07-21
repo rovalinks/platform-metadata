@@ -22,6 +22,9 @@ SUPPORTED_LABEL_RESOURCES = {
 
     # Storage Bucket
     "storage.googleapis.com/Bucket",
+
+    "cloudresourcemanager.googleapis.com/Project",
+    "cloudkms.googleapis.com/CryptoKey",
     
     
     # "bigquery.googleapis.com/Dataset",

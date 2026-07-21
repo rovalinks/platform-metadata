@@ -6,6 +6,8 @@ from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_R
 from clients.compute import ComputeClient
 from clients.bigquery import BigQueryClient
 from clients.storage import StorageClient
+from clients.resourcemanager import ResourceManagerClient
+from clients.kms import KMSClient
 # from clients.sql import CloudSqlClient
 # from clients.artifact_registry import ArtifactRegistryClient
 # from clients.pubsub import PubSubClient
@@ -13,7 +15,6 @@ from clients.storage import StorageClient
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.secret_manager import SecretManagerClient
 #from clients.project import ProjectClient
-# from clients.kms import KmsClient
 #from clients.apikeys import ApiKeysClient
 from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
@@ -32,6 +33,8 @@ class AdapterService:
             BigQueryClient(),
             # BigQueryReservationClient(),
             StorageClient(),
+            ResourceManagerClient(),
+            KMSClient(),
             # CloudSqlClient(),
             # ArtifactRegistryClient(),
             # PubSubClient(),
