@@ -23,7 +23,7 @@ from clients.secret_manager import SecretManagerClient
 from clients.apikeys import ApiKeysClient
 
 # from clients.bigquery_reservation import BigQueryReservationClient
-from clients.functions import FunctionsClient
+# from clients.functions import FunctionsClient
 
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class AdapterService:
             ProjectClient(),
             GKEClient(),
             CloudRunClient(),
-            CloudSqlClient(),
+            CloudSQLClient(),
             ArtifactRegistryClient(),
             CloudFunctionsClient(),
             VertexClient(),
@@ -54,9 +54,8 @@ class AdapterService:
             AppEngineClient(),
             RedisClient(),
             SecretManagerClient(),
-            KmsClient(),
             ApiKeysClient(),
-            FunctionsClient(),
+            # FunctionsClient(),
         ]
 
     def client_for(self, asset_type: str):
