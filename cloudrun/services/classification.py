@@ -6,6 +6,8 @@ from extractors.resourcemanager import ResourceManagerExtractor
 from extractors.kms import KMSExtractor
 from extractors.pubsub import PubSubExtractor
 from extractors.cloudsql import CloudSQLExtractor
+from extractors.gke import GKEExtractor
+from extractors.cloudrun import CloudRunExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -18,6 +20,8 @@ class ClassificationService:
             "cloudkms.googleapis.com": KMSExtractor(),
             "pubsub.googleapis.com": PubSubExtractor(),
             "sqladmin.googleapis.com": CloudSQLExtractor(),
+            "container.googleapis.com": GKEExtractor(),
+            "run.googleapis.com": CloudRunExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:

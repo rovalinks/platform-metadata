@@ -8,13 +8,14 @@ from clients.bigquery import BigQueryClient
 from clients.storage import StorageClient
 from clients.resourcemanager import ResourceManagerClient
 from clients.kms import KMSClient
-# from clients.sql import CloudSqlClient
+from clients.project import ProjectClient
+from clients.gke import GKEClient
+from clients.cloudrun import CloudRunClient
+
 # from clients.artifact_registry import ArtifactRegistryClient
 # from clients.pubsub import PubSubClient
-# from clients.gke import GkeClient
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.secret_manager import SecretManagerClient
-#from clients.project import ProjectClient
 #from clients.apikeys import ApiKeysClient
 from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
