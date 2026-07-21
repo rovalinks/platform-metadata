@@ -30,7 +30,7 @@
             <!-- Integrated Project Selector & Brownfield Button -->
             <div class="toolbar-group">
                 <label for="project">Project</label>
-                <select id="project" disabled>
+                <select id="project">
                     <option value="">All Projects</option>
                     <option value="payments-dev-1">payments-dev-1</option>
                 </select>
@@ -115,34 +115,42 @@
     Enterprise Metadata Governance Platform
 </footer>
 
-<!-- JavaScript for Brownfield Trigger -->
+<!-- JavaScript for Project Initialization & Brownfield Trigger -->
 <script>
+document.addEventListener("DOMContentLoaded", () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const projectId = urlParams.get('project_id') || 'payments-dev-1'; 
+    
+    const selector = document.getElementById('project');
+    if (selector) {
+        selector.innerHTML = `<option value="${projectId}">${projectId}</option>`;
+    }
+});
+
 async function triggerBrownfield() {
     const projectSelect = document.getElementById('project');
-    const projectId = projectSelect.value;
+    const projectId = projectSelect ? projectSelect.value : 'payments-dev-1';
     
-    if (!projectId || projectSelect.disabled) {
-        alert("Please switch Scope to 'Project' and select a project first.");
+    if (!projectId) {
+        alert("Please select a project first.");
         return;
     }
     
     const btn = document.getElementById('run-brownfield-btn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = 'Queuing...';
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Queuing...';
 
     try {
-        const response = await fetch(`/brownfield?scope=project&scope_id=${projectId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+        const response = await fetch(`/brownfield?project=${projectId}`, {
+            method: 'GET'
         });
         
-        const result = await response.json();
         if (response.ok) {
-            alert(`✅ Brownfield scan initiated for ${projectId}!\nRun ID: ${result.run_id || 'Started'}`);
-            setTimeout(() => window.location.reload(), 2000);
+            alert(`✅ Brownfield scan initiated for ${projectId}!`);
+            setTimeout(() => window.location.reload(), 1500); 
         } else {
-            alert(`❌ Failed to start scan: ${result.error || 'Unknown error'}`);
+            alert(`❌ Failed to start scan. HTTP Status: ${response.status}`);
         }
     } catch (e) {
         alert("Error triggering brownfield scan. Check network logs.");
