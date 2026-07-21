@@ -19,10 +19,10 @@ from clients.vertex import VertexClient
 from clients.dataplex import DataplexClient
 from clients.appengine import AppEngineClient
 from clients.redis import RedisClient
+from clients.secret_manager import SecretManagerClient
+from clients.apikeys import ApiKeysClient
 
 # from clients.bigquery_reservation import BigQueryReservationClient
-# from clients.secret_manager import SecretManagerClient
-#from clients.apikeys import ApiKeysClient
 from clients.functions import FunctionsClient
 
 
@@ -53,10 +53,9 @@ class AdapterService:
             DataplexClient(),
             AppEngineClient(),
             RedisClient(),
-
-            # SecretManagerClient(),
-            # KmsClient(),
-            # ApiKeysClient(),
+            SecretManagerClient(),
+            KmsClient(),
+            ApiKeysClient(),
             FunctionsClient(),
         ]
 
