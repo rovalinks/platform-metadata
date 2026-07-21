@@ -15,6 +15,8 @@ from clients.cloudrun import CloudRunClient
 from clients.cloudsql import CloudSQLClient
 from clients.artifactregistry import ArtifactRegistryClient
 from clients.cloudfunctions import CloudFunctionsClient
+from clients.vertex import VertexClient
+from clients.dataplex import DataplexClient
 
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.secret_manager import SecretManagerClient
@@ -46,6 +48,9 @@ class AdapterService:
             CloudSqlClient(),
             ArtifactRegistryClient(),
             CloudFunctionsClient(),
+            VertexClient(),
+            DataplexClient(),
+
             
             # SecretManagerClient(),
             # KmsClient(),

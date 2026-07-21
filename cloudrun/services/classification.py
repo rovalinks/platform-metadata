@@ -10,6 +10,8 @@ from extractors.gke import GKEExtractor
 from extractors.cloudrun import CloudRunExtractor
 from extractors.artifactregistry import ArtifactRegistryExtractor
 from extractors.cloudfunctions import CloudFunctionsExtractor
+from extractors.vertex import VertexExtractor
+from extractors.dataplex import DataplexExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -26,6 +28,8 @@ class ClassificationService:
             "run.googleapis.com": CloudRunExtractor(),
             "artifactregistry.googleapis.com": ArtifactRegistryExtractor(),
             "cloudfunctions.googleapis.com": CloudFunctionsExtractor(),
+            "aiplatform.googleapis.com": VertexExtractor(),
+            "dataplex.googleapis.com": DataplexExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:
