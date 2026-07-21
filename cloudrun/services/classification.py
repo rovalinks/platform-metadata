@@ -1,6 +1,7 @@
 from utils.logger import logger
 from extractors.compute import ComputeExtractor
 from extractors.bigquery import BigQueryExtractor
+from extractors.storage import StorageExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -8,6 +9,7 @@ class ClassificationService:
         self.extractors = {
             "compute.googleapis.com": ComputeExtractor(),
             "bigquery.googleapis.com": BigQueryExtractor(),
+            "storage.googleapis.com": StorageExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:

@@ -1,148 +1,43 @@
-import logging
-
 from google.cloud import storage
-
+from utils.logger import logger
 import config
 
-from clients.base import ResourceClient
-from config import EXCLUDED_BUCKETS
-from models.resource import Resource
-
-# Configure logger
-logger = logging.getLogger(__name__)
-
-
-class StorageClient(ResourceClient):
-    """Cloud Storage resource adapter."""
-
+class StorageClient:
     def __init__(self):
-
         self.client = storage.Client()
+        self.dry_run = config.DRY_RUN
 
-    def supports(
-        self,
-        asset_type: str,
-    ):
+    def _parse_bucket_name(self, resource_url: str) -> str:
+        # Resource URLs usually look like: projects/_/buckets/my-bucket-name
+        return resource_url.split("/")[-1]
 
-        return asset_type == "storage.googleapis.com/Bucket"
+    def get(self, resource_name: str, asset_type: str) -> dict:
+        bucket_name = self._parse_bucket_name(resource_name)
+        try:
+            bucket = self.client.get_bucket(bucket_name)
+            return bucket.labels or {}
+        except Exception as e:
+            logger.error(f"Failed to fetch Storage Bucket {bucket_name}: {e}")
+            raise
 
-    def labels(
-        self,
-        resource,
-    ):
-
-        bucket_name = resource.name.split("/")[-1]
-
-        if bucket_name in EXCLUDED_BUCKETS:
-
-            logger.info(
-                "Skipping excluded bucket %s",
-                bucket_name,
-            )
-
-            return {}
-
-        bucket = self.client.get_bucket(
-            bucket_name
-        )
-
-        return dict(
-            bucket.labels or {}
-        )
-
-    def get(
-        self,
-        resource_name: str,
-    ) -> Resource:
-        """
-        Retrieves a Cloud Storage bucket and returns
-        the platform Resource model.
-        """
-
-        bucket_name = resource_name.split("/")[-1]
-
-        bucket = self.client.get_bucket(
-            bucket_name
-        )
-
-        return Resource(
-
-            asset_type="storage.googleapis.com/Bucket",
-
-            name=resource_name,
-
-            project="",
-
-            location=bucket.location,
-
-            labels=dict(
-                bucket.labels or {}
-            ),
-
-            tags={},
-
-        )
-
-    def apply_labels(
-        self,
-        resource,
-        labels: dict,
-    ):
-
-        bucket_name = resource.name.split("/")[-1]
-
-        if bucket_name in EXCLUDED_BUCKETS:
-
-            logger.info(
-                "Skipping excluded bucket %s",
-                bucket_name,
-            )
-
-            return False
-
-        bucket = self.client.get_bucket(
-            bucket_name
-        )
-
-        existing = dict(
-            bucket.labels or {}
-        )
-
-        if config.PRESERVE_EXISTING_LABELS:
-
-            merged = existing.copy()
-
-            for key, value in labels.items():
-
-                if key not in merged:
-
-                    merged[key] = value
-
-        else:
-
-            merged = existing.copy()
-
-            merged.update(labels)
-
-        #
-        # Nothing to update
-        #
-        if merged == existing:
-
-            logger.info(
-                "Bucket %s already compliant.",
-                bucket_name,
-            )
-
+    def patch(self, resource_name: str, asset_type: str, expected_labels: dict, expected_tags: dict) -> bool:
+        if self.dry_run:
+            logger.info(f"[DRY RUN] Would patch Storage Bucket {resource_name} with labels: {expected_labels}")
             return True
 
-        bucket.labels = merged
-
-        bucket.patch()
-
-        logger.info(
-            "Updated labels on bucket %s",
-            bucket_name,
-        )
-
-        return True
+        bucket_name = self._parse_bucket_name(resource_name)
+        try:
+            bucket = self.client.get_bucket(bucket_name)
+            
+            # Merge existing labels with expected labels
+            current_labels = bucket.labels or {}
+            current_labels.update(expected_labels)
+            
+            bucket.labels = current_labels
+            bucket.patch()
+            
+            logger.info(f"Successfully patched Storage Bucket {bucket_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to patch Storage Bucket {bucket_name}: {e}")
+            return False

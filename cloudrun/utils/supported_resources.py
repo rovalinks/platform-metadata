@@ -20,8 +20,10 @@ SUPPORTED_LABEL_RESOURCES = {
     "bigquery.googleapis.com/Table",
     "bigquery.googleapis.com/Model",
 
-
-    # "storage.googleapis.com/Bucket",
+    # Storage Bucket
+    "storage.googleapis.com/Bucket",
+    
+    
     # "bigquery.googleapis.com/Dataset",
     # "sqladmin.googleapis.com/Instance",
     # "artifactregistry.googleapis.com/Repository",

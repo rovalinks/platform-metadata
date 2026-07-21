@@ -5,7 +5,7 @@ from services.capability import CapabilityService
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 from clients.compute import ComputeClient
 from clients.bigquery import BigQueryClient
-# from clients.storage import StorageClient
+from clients.storage import StorageClient
 # from clients.sql import CloudSqlClient
 # from clients.artifact_registry import ArtifactRegistryClient
 # from clients.pubsub import PubSubClient
@@ -31,7 +31,7 @@ class AdapterService:
             ComputeClient(),
             BigQueryClient(),
             # BigQueryReservationClient(),
-            # StorageClient(),
+            StorageClient(),
             # CloudSqlClient(),
             # ArtifactRegistryClient(),
             # PubSubClient(),
