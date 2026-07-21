@@ -93,7 +93,7 @@ class ExecutorService:
         failed = 0
         for result in results:
             plan = plans_by_resource[result["resource"]]
-            status = "SUCCESS" if result["status"] == "updated" else "FAILED"
+            status = "SUCCESS" if result["status"] in ["updated", "bypassed", "unsupported"] else "FAILED"
             if status == "SUCCESS": successful += 1
             else: failed += 1
             self.execution_repository.save(run_id=run_id, project_id=plan.project_id, asset_type=plan.asset_type, resource_name=plan.resource_name, status=status, execution_mode="BROWNFIELD", error_message=result.get("error"))
