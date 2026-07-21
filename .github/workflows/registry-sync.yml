@@ -36,6 +36,8 @@ jobs:
 
       - name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          skip_install: true
 
       - name: Synchronise Registry
         run: |
