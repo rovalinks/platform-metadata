@@ -14,17 +14,17 @@ class ArtifactRegistryClient:
         return asset_type in supported_types and asset_type.startswith("artifactregistry.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        # CAI format: //artifactregistry.googleapis.com/projects/P/locations/L/repositories/R[cite: 4]
-        parts = resource_url.replace("//artifactregistry.googleapis.com/", "").split("/")[cite: 4]
+        # CAI format: //artifactregistry.googleapis.com/projects/P/locations/L/repositories/R
+        parts = resource_url.replace("//artifactregistry.googleapis.com/", "").split("/")
         
-        # SAFELY BYPASS IF THIS IS JUST A LOCATION, NOT A REPOSITORY[cite: 4]
-        if "repositories" not in parts:[cite: 4]
-            return None[cite: 4]
+        # SAFELY BYPASS IF THIS IS JUST A LOCATION, NOT A REPOSITORY
+        if "repositories" not in parts:
+            return None
             
-        project = parts[parts.index("projects") + 1][cite: 4]
-        location = parts[parts.index("locations") + 1][cite: 4]
-        repo = parts[parts.index("repositories") + 1][cite: 4]
-        return f"projects/{project}/locations/{location}/repositories/{repo}"[cite: 4]
+        project = parts[parts.index("projects") + 1]
+        location = parts[parts.index("locations") + 1]
+        repo = parts[parts.index("repositories") + 1]
+        return f"projects/{project}/locations/{location}/repositories/{repo}"
 
     def get(self, resource_name: str, **kwargs):
         repo_name = self._parse_resource_name(resource_name)[cite: 4]
