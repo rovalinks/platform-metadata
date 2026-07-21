@@ -36,8 +36,15 @@ SUPPORTED_LABEL_RESOURCES = {
     "artifactregistry.googleapis.com/Repository",
     "cloudfunctions.googleapis.com/Function",
     "cloudfunctions.googleapis.com/CloudFunction", # Covers v1 and v2
-    
-    # "artifactregistry.googleapis.com/Repository",
+
+    "aiplatform.googleapis.com/Dataset",
+    "aiplatform.googleapis.com/Model",
+    "aiplatform.googleapis.com/CustomJob",
+    "aiplatform.googleapis.com/PipelineJob",
+    "aiplatform.googleapis.com/BatchPredictionJob",
+    "dataplex.googleapis.com/EntryGroup",
+    "dataplex.googleapis.com/DataScan",
+
     # "container.googleapis.com/Cluster",
     # "container.googleapis.com/NodePool",
     # "secretmanager.googleapis.com/Secret",
