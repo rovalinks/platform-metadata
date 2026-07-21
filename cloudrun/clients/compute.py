@@ -158,23 +158,8 @@ class ComputeClient(ResourceClient):
 
         # --- ROUTER OVERRIDE ---
         if entry["client_attr"] == "routers":
-            from google.cloud import compute_v1
-            
-            # FIXED: using resource_name safely
-            parts = resource_name.split('/')
-            project_id = parts[parts.index("projects") + 1]
-            region = parts[parts.index("regions") + 1]
-            router_name = parts[-1]
-            
-            # FIXED: using 'labels' instead of 'final_labels'
-            router_patch = compute_v1.Router(labels=labels)
-            
-            self.routers.patch(
-                project=project_id,
-                region=region,
-                router=router_name,
-                router_resource=router_patch
-            )
+            from utils.logger import logger
+            logger.info(f"Cloud Routers do not support standard labels. Bypassing {resource_name}.")
             return True
         # -----------------------
         
