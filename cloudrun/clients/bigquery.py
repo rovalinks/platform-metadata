@@ -2,6 +2,7 @@ from google.cloud import bigquery
 from utils.logger import logger
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 import config
+from types import SimpleNamespace
 
 class BigQueryClient:
     def __init__(self):
@@ -27,15 +28,15 @@ class BigQueryClient:
             return f"{project}.{dataset}", "Dataset"
 
     # Fixed signature to accept executor.py contract
-    def get(self, resource_name: str, **kwargs) -> dict:
+    def get(self, resource_name: str, **kwargs):
         bq_id, res_type = self._parse_resource_name(resource_name)
         try:
             if res_type == "Dataset":
                 dataset = self.client.get_dataset(bq_id)
-                return dataset.labels or {}
+                return SimpleNamespace(labels=dataset.labels or {}, tags={})
             elif res_type in ["Table", "Model"]:
                 table = self.client.get_table(bq_id)
-                return table.labels or {}
+                return SimpleNamespace(labels=table.labels or {}, tags={})
         except Exception as e:
             logger.error(f"Failed to fetch BigQuery {res_type} {bq_id}: {e}")
             raise
