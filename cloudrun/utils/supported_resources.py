@@ -32,6 +32,10 @@ SUPPORTED_LABEL_RESOURCES = {
 
     "container.googleapis.com/Cluster",
     "run.googleapis.com/Service",
+
+    "artifactregistry.googleapis.com/Repository",
+    "cloudfunctions.googleapis.com/Function",
+    "cloudfunctions.googleapis.com/CloudFunction", # Covers v1 and v2
     
     # "artifactregistry.googleapis.com/Repository",
     # "container.googleapis.com/Cluster",

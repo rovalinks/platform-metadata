@@ -21,7 +21,8 @@ google-cloud-pubsub>=2.19.0
 requests>=2.31.0
 google-cloud-container>=2.35.0
 google-cloud-run>=0.10.0
-
+google-cloud-artifact-registry>=1.11.0
+google-cloud-functions>=1.13.0
 
 
 

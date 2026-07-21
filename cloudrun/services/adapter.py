@@ -12,14 +12,16 @@ from clients.pubsub import PubSubClient
 from clients.project import ProjectClient
 from clients.gke import GKEClient
 from clients.cloudrun import CloudRunClient
+from clients.cloudsql import CloudSQLClient
+from clients.artifactregistry import ArtifactRegistryClient
+from clients.cloudfunctions import CloudFunctionsClient
 
-# from clients.artifact_registry import ArtifactRegistryClient
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.secret_manager import SecretManagerClient
 #from clients.apikeys import ApiKeysClient
 from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
-from clients.cloudsql import CloudSQLClient
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,8 @@ class AdapterService:
             KMSClient(),
             PubSubClient(),
             CloudSqlClient(),
-            # ArtifactRegistryClient(),
+            ArtifactRegistryClient(),
+            CloudFunctionsClient(),
             # GkeClient(),
             # SecretManagerClient(),
             # ProjectClient(),

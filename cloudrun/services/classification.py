@@ -8,6 +8,8 @@ from extractors.pubsub import PubSubExtractor
 from extractors.cloudsql import CloudSQLExtractor
 from extractors.gke import GKEExtractor
 from extractors.cloudrun import CloudRunExtractor
+from extractors.artifactregistry import ArtifactRegistryExtractor
+from extractors.cloudfunctions import CloudFunctionsExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -22,6 +24,8 @@ class ClassificationService:
             "sqladmin.googleapis.com": CloudSQLExtractor(),
             "container.googleapis.com": GKEExtractor(),
             "run.googleapis.com": CloudRunExtractor(),
+            "artifactregistry.googleapis.com": ArtifactRegistryExtractor(),
+            "cloudfunctions.googleapis.com": CloudFunctionsExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:
