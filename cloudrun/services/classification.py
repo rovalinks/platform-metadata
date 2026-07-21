@@ -4,6 +4,7 @@ from extractors.bigquery import BigQueryExtractor
 from extractors.storage import StorageExtractor
 from extractors.resourcemanager import ResourceManagerExtractor
 from extractors.kms import KMSExtractor
+from extractors.pubsub import PubSubExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -14,6 +15,7 @@ class ClassificationService:
             "storage.googleapis.com": StorageExtractor(),
             "cloudresourcemanager.googleapis.com": ResourceManagerExtractor(),
             "cloudkms.googleapis.com": KMSExtractor(),
+            "pubsub.googleapis.com": PubSubExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:

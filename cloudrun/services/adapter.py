@@ -35,6 +35,7 @@ class AdapterService:
             StorageClient(),
             ResourceManagerClient(),
             KMSClient(),
+            PubSubClient(),
             # CloudSqlClient(),
             # ArtifactRegistryClient(),
             # PubSubClient(),
