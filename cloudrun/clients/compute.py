@@ -6,6 +6,7 @@ from models.resource import Resource
 import config
 from utils.labels import reconcile_labels
 from google.api_core.exceptions import NotFound
+from types import SimpleNamespace
 
 logger = logging.getLogger(__name__)
 
@@ -125,9 +126,21 @@ class ComputeClient(ResourceClient):
         except Exception as e:
             logger.exception("Failed to fetch labels: %s", e); return None
             
-    def get(self, n: str) -> Resource:
+    def get(self, resource_name: str, **kwargs) -> SimpleNamespace:
+        info = self._parse_resource_url(resource_name)
+        entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
+        
+        # Safely bypass if resource type isn't fully registered
+        if not entry:
+            return SimpleNamespace(name=resource_name, labels={}, tags={})
+            
+        client = getattr(self, entry["client_attr"], None)
+        get_kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+        if info["scope_type"] in ("zones", "regions"): 
+            get_kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
+            
         try:
-            res = client.get(**kwargs)
+            res = client.get(**get_kwargs)
             # Support both tag-only and label-supported resources safely
             labels = dict(res.labels) if hasattr(res, "labels") else {}
             return SimpleNamespace(name=resource_name, labels=labels, tags={})
@@ -145,10 +158,10 @@ class ComputeClient(ResourceClient):
         def run():
             res = g()
             ex = dict(getattr(res, "labels", {}))
-            # Use reconcile_labels to merge safely while keeping existing labels[cite: 11]
+            # Use reconcile_labels to merge safely while keeping existing labels
             m = reconcile_labels(ex, labels)
             if m == ex: return True
-            # Include fingerprint for optimistic locking requirement[cite: 11]
+            # Include fingerprint for optimistic locking requirement
             return s(req_cls(labels=m, label_fingerprint=res.label_fingerprint))
         try: return run()
         except PreconditionFailed: return run()
@@ -161,7 +174,7 @@ class ComputeClient(ResourceClient):
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
 
         # --- ROUTER OVERRIDE ---
-        if entry["client_attr"] == "routers":
+        if entry and entry.get("client_attr") == "routers":
             from utils.logger import logger
             logger.info(f"Cloud Routers do not support standard labels. Bypassing {resource_name}.")
             return True
