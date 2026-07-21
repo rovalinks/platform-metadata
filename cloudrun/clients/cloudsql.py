@@ -9,7 +9,8 @@ from types import SimpleNamespace
 class CloudSQLClient:
     def __init__(self):
         self.dry_run = config.DRY_RUN
-        self.credentials, _ = google.auth.default()
+        # FIX: Explicitly request the cloud-platform scope for REST API calls
+        self.credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
 
     def _get_headers(self):
         if not self.credentials.valid:
@@ -24,7 +25,6 @@ class CloudSQLClient:
         return asset_type in supported_types and asset_type.startswith("sqladmin.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        # Format: //sqladmin.googleapis.com/projects/PROJECT/instances/INSTANCE
         parts = resource_url.replace("//sqladmin.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         instance = parts[parts.index("instances") + 1]
@@ -38,9 +38,15 @@ class CloudSQLClient:
             response.raise_for_status()
             data = response.json()
             
-            # Secretly map SQL's 'userLabels' into standard 'labels' for the executor
             labels = data.get("settings", {}).get("userLabels", {})
             return SimpleNamespace(name=resource_name, labels=labels, tags={})
+        except requests.exceptions.HTTPError as e:
+            # FIX: Gracefully bypass if the instance is deleted (404) or IAM hasn't propagated (403)
+            if e.response.status_code in (403, 404):
+                logger.warning(f"Cloud SQL resource {instance} returned {e.response.status_code}. Bypassing.")
+                return None
+            logger.error(f"Failed to fetch Cloud SQL Instance {instance}: {e}")
+            raise
         except Exception as e:
             logger.error(f"Failed to fetch Cloud SQL Instance {instance}: {e}")
             raise
@@ -55,7 +61,6 @@ class CloudSQLClient:
         project, instance = self._parse_resource_name(resource_name)
         url = f"https://sqladmin.googleapis.com/v1/projects/{project}/instances/{instance}"
         
-        # Format the PATCH request exactly how the SQL API expects it
         body = {
             "settings": {
                 "userLabels": labels
@@ -69,6 +74,4 @@ class CloudSQLClient:
             return True
         except Exception as e:
             logger.error(f"Failed to patch Cloud SQL Instance {instance}: {e}")
-            if hasattr(e, "response") and e.response is not None:
-                logger.error(f"GCP API Response: {e.response.text}")
             return False
