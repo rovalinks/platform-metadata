@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+.github/
+
+# Development/Local files
+.env
+.DS_Store
+*.sh
+README.md
+
+# Virtual Environments & Caches
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# Do not bundle the massive YAML registry into the API container!
+registry/
+validation/
