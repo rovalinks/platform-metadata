@@ -2,6 +2,7 @@ from google.cloud import storage
 from utils.logger import logger
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 import config
+from types import SimpleNamespace
 
 class StorageClient:
     def __init__(self):
@@ -17,11 +18,11 @@ class StorageClient:
         return resource_url.split("/")[-1]
 
     # Fixed signature to accept executor.py contract
-    def get(self, resource_name: str, **kwargs) -> dict:
+    def get(self, resource_name: str, **kwargs):
         bucket_name = self._parse_bucket_name(resource_name)
         try:
             bucket = self.client.get_bucket(bucket_name)
-            return bucket.labels or {}
+            return SimpleNamespace(labels=bucket.labels or {}, tags={})
         except Exception as e:
             logger.error(f"Failed to fetch Storage Bucket {bucket_name}: {e}")
             raise
