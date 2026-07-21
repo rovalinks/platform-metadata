@@ -1,132 +1,71 @@
 from google.cloud import pubsub_v1
-from google.protobuf.field_mask_pb2 import FieldMask
+from utils.logger import logger
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
+import config
+from types import SimpleNamespace
 
-from clients.base import ResourceClient
-from models.resource import Resource
-
-
-class PubSubClient(ResourceClient):
-    """Pub/Sub Topic adapter."""
-
+class PubSubClient:
     def __init__(self):
+        # Pub/Sub requires separate clients for publishing (Topics) and subscribing (Subscriptions)
+        self.publisher = pubsub_v1.PublisherClient()
+        self.subscriber = pubsub_v1.SubscriberClient()
+        self.dry_run = config.DRY_RUN
 
-        self.client = pubsub_v1.PublisherClient()
+    def supports(self, asset_type: str) -> bool:
+        supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
+        return asset_type in supported_types and asset_type.startswith("pubsub.googleapis.com/")
 
-    def supports(
-        self,
-        asset_type: str,
-    ):
+    def _parse_resource_name(self, resource_url: str):
+        # Handle CAI format: //pubsub.googleapis.com/projects/PROJECT/topics/TOPIC
+        parts = resource_url.replace("//pubsub.googleapis.com/", "").split("/")
+        project = parts[parts.index("projects") + 1]
+        
+        if "topics" in parts:
+            topic = parts[parts.index("topics") + 1]
+            return self.publisher.topic_path(project, topic), "Topic"
+        elif "subscriptions" in parts:
+            sub = parts[parts.index("subscriptions") + 1]
+            return self.subscriber.subscription_path(project, sub), "Subscription"
+            
+        raise ValueError(f"Unknown Pub/Sub resource format: {resource_url}")
 
-        return (
-            asset_type
-            == "pubsub.googleapis.com/Topic"
-        )
+    def get(self, resource_name: str, **kwargs):
+        pubsub_id, res_type = self._parse_resource_name(resource_name)
+        try:
+            if res_type == "Topic":
+                topic = self.publisher.get_topic(request={"topic": pubsub_id})
+                return SimpleNamespace(name=resource_name, labels=dict(topic.labels) or {}, tags={})
+            elif res_type == "Subscription":
+                sub = self.subscriber.get_subscription(request={"subscription": pubsub_id})
+                return SimpleNamespace(name=resource_name, labels=dict(sub.labels) or {}, tags={})
+        except Exception as e:
+            logger.error(f"Failed to fetch Pub/Sub {res_type} {pubsub_id}: {e}")
+            raise
 
-    def labels(
-        self,
-        resource,
-    ):
+    def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
+        if self.dry_run:
+            logger.info(f"[DRY RUN] Would patch Pub/Sub {resource_name} with {labels}")
+            return True
 
-        topic = self.client.get_topic(
-            topic=self._topic_name(
-                resource.name
-            )
-        )
-
-        return dict(
-            topic.labels or {}
-        )
-
-    def get(
-        self,
-        resource_name: str,
-    ) -> Resource:
-        """
-        Retrieves a Pub/Sub Topic and returns
-        the platform Resource model.
-        """
-
-        topic = self.client.get_topic(
-            topic=self._topic_name(
-                resource_name
-            )
-        )
-
-        return Resource(
-
-            asset_type="pubsub.googleapis.com/Topic",
-
-            name=resource_name,
-
-            #
-            # GreenfieldService injects the
-            # authoritative project ID.
-            #
-            project="",
-
-            location="global",
-
-            labels=dict(
-                topic.labels or {}
-            ),
-
-            tags={},
-
-        )
-
-    def apply_labels(
-        self,
-        resource,
-        labels,
-    ):
-
-        topic = self.client.get_topic(
-            topic=self._topic_name(
-                resource.name
-            )
-        )
-
-        merged = dict(
-            topic.labels or {}
-        )
-
-        merged.update(labels)
-
-        topic.labels.clear()
-
-        topic.labels.update(merged)
-
-        self.client.update_topic(
-            topic=topic,
-            update_mask=FieldMask(
-                paths=["labels"]
-            ),
-        )
-
-        return True
-
-    @staticmethod
-    def _topic_name(
-        asset_name: str,
-    ):
-
-        #
-        # Accept both:
-        #
-        # //pubsub.googleapis.com/projects/<project>/topics/<topic>
-        #
-        # and
-        #
-        # projects/<project>/topics/<topic>
-        #
-
-        if asset_name.startswith(
-            "//pubsub.googleapis.com/"
-        ):
-
-            return asset_name.replace(
-                "//pubsub.googleapis.com/",
-                "",
-            )
-
-        return asset_name
+        pubsub_id, res_type = self._parse_resource_name(resource_name)
+        try:
+            if res_type == "Topic":
+                topic = self.publisher.get_topic(request={"topic": pubsub_id})
+                topic.labels = labels
+                self.publisher.update_topic(
+                    request={"topic": topic, "update_mask": {"paths": ["labels"]}}
+                )
+            elif res_type == "Subscription":
+                sub = self.subscriber.get_subscription(request={"subscription": pubsub_id})
+                sub.labels = labels
+                self.subscriber.update_subscription(
+                    request={"subscription": sub, "update_mask": {"paths": ["labels"]}}
+                )
+                
+            logger.info(f"Successfully patched Pub/Sub {res_type} {pubsub_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to patch Pub/Sub {res_type} {pubsub_id}: {e}")
+            return False

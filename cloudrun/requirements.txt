@@ -17,8 +17,8 @@ google-cloud-bigquery>=3.11.0
 google-cloud-storage>=2.10.0
 google-cloud-resource-manager>=1.14.0
 google-cloud-kms
+google-cloud-pubsub>=2.19.0
 
-google-cloud-pubsub
 google-cloud-artifact-registry
 google-cloud-container
 google-cloud-asset
