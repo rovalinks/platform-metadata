@@ -16,6 +16,10 @@ permissions:
   id-token: write
   security-events: write
 
+# Fixes the Node 20 deprecation warning globally
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   # ==========================================
   # JOB 1: SECURITY CHECKS
@@ -25,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v4 # Unpinned from v4.2.0 to get Node 24 updates
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -80,14 +84,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # CORRECTED: Image tag is explicitly governance-engine
       - name: Build and Push Container
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6 # Bumped to v6 for Node 24 compatibility
         with:
           context: .
           push: true
           provenance: false
-          tags: |           # <-- FIX 2: Adds the latest tag alongside the SHA
+          tags: |
             ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}
             ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:latest
           cache-from: type=gha
@@ -127,7 +130,6 @@ jobs:
               f.write(content)
           '
 
-      # CORRECTED: Pulls the governance-engine image specifically
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
@@ -167,14 +169,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # CORRECTED: Image tag is explicitly governance-engine
       - name: Build and Push Container
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6 # Bumped to v6 for Node 24 compatibility
         with:
           context: .
           push: true
           provenance: false
-          tags: |           # <-- FIX 2: Adds the latest tag alongside the SHA
+          tags: |
             ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}
             ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:latest
           cache-from: type=gha
@@ -214,7 +215,6 @@ jobs:
               f.write(content)
           '
 
-      # CORRECTED: Pulls the governance-engine image specifically
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
