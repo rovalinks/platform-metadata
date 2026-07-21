@@ -27,7 +27,10 @@ google-cloud-aiplatform>=1.38.0
 google-cloud-dataplex>=1.10.0
 google-cloud-appengine-admin>=1.4.0
 google-cloud-redis>=2.15.0
-
+google-cloud-monitoring>=2.20.0
+google-cloud-dataform>=0.8.0
+google-cloud-alloydb>=0.3.0
+google-cloud-dns>=3.5.0
 
 
 google-cloud-artifact-registry

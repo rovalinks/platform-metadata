@@ -49,6 +49,12 @@ SUPPORTED_LABEL_RESOURCES = {
     "appengine.googleapis.com/Application",
     "redis.googleapis.com/Instance",
 
+    "monitoring.googleapis.com/AlertPolicy",
+    "dataform.googleapis.com/Repository",
+    "dns.googleapis.com/ManagedZone",
+    "alloydb.googleapis.com/Cluster",
+    "alloydb.googleapis.com/Instance",
+
     # "container.googleapis.com/Cluster",
     # "container.googleapis.com/NodePool",
     # "secretmanager.googleapis.com/Secret",
