@@ -1,6 +1,6 @@
 #!/bin/bash
 # ==============================================================================
-# Script to view labels for test-gov resources in payments-dev-1
+# Script to view labels/metadata for test resources in payments-dev-1
 # ==============================================================================
 
 PROJECT="payments-dev-1"
@@ -11,7 +11,7 @@ PREFIX="test-gov"
 echo "Listing labels for all test resources in $PROJECT..."
 echo "----------------------------------------------------"
 
-# Function to display labels for a resource
+# Function to display labels for a compute resource
 show_labels() {
     local resource_type=$1
     local resource_name=$2
@@ -20,6 +20,13 @@ show_labels() {
     printf "%-25s | %-20s | " "$resource_type" "$resource_name"
     gcloud compute $resource_type describe $resource_name $flags --project=$PROJECT --format="value(labels)"
 }
+
+# 0. Storage Bucket & BigQuery Dataset
+printf "%-25s | %-20s | " "storage-bucket" "governance-test-bucket"
+gcloud storage buckets describe gs://payments-dev-1-governance-test-bucket --format="value(labels)"
+
+printf "%-25s | %-20s | " "bigquery-dataset" "test_governance_dataset"
+bq show --format=prettyjson $PROJECT:test_governance_dataset | grep -A 5 "labels" || echo "No labels found"
 
 # 1. Address
 show_labels "addresses" "$PREFIX-address" "--region=$REGION"
