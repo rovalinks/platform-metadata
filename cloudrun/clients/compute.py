@@ -5,6 +5,7 @@ from clients.base import ResourceClient
 from models.resource import Resource
 import config
 from utils.labels import reconcile_labels
+from google.api_core.exceptions import NotFound
 
 logger = logging.getLogger(__name__)
 
@@ -126,16 +127,19 @@ class ComputeClient(ResourceClient):
             
     def get(self, n: str) -> Resource:
         try:
-            info = self._parse_resource_url(n)
-            entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
-            if not entry: return None
-            client = getattr(self, entry["client_attr"], None)
-            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-            if info["scope_type"] in ("zones", "regions"): kwargs["zone" if info["scope_type"] == "zones" else "region"] = info["scope_value"]
             res = client.get(**kwargs)
-            return Resource(asset_type=entry["asset_type"], name=n, project=info["project"], location=info["scope_value"], labels=dict(getattr(res, "labels", {})))
+            # Support both tag-only and label-supported resources safely
+            labels = dict(res.labels) if hasattr(res, "labels") else {}
+            return SimpleNamespace(name=resource_name, labels=labels, tags={})
+            
+        except NotFound:
+            # CLEANLY HANDLE DELETED EPHEMERAL GKE NODES WITHOUT TRACEBACK SPAM
+            logger.info(f"Compute resource {resource_name} not found (likely ephemeral/deleted). Bypassing.")
+            return None
+            
         except Exception as e:
-            logger.exception("Failed to get resource %s: %s", n, e); return None
+            logger.error(f"Failed to get resource {resource_name}: {e}")
+            raise
         
     def _apply_labels_generic(self, g, s, req_cls, labels):
         def run():
