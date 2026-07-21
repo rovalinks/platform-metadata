@@ -21,6 +21,10 @@ from clients.appengine import AppEngineClient
 from clients.redis import RedisClient
 from clients.secret_manager import SecretManagerClient
 from clients.apikeys import ApiKeysClient
+from clients.monitoring import MonitoringClient
+from clients.dataform import DataformClient
+from clients.dns import DNSClient
+from clients.alloydb import AlloyDBClient
 
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.functions import FunctionsClient
@@ -55,6 +59,11 @@ class AdapterService:
             RedisClient(),
             SecretManagerClient(),
             ApiKeysClient(),
+            MonitoringClient()
+            DataformClient()
+            DNSClient()
+            AlloyDBClient()
+
             # FunctionsClient(),
         ]
 
