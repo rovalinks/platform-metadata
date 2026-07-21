@@ -1,116 +1,50 @@
 from google.cloud import kms_v1
-from google.protobuf.field_mask_pb2 import FieldMask
-
+from utils.logger import logger
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 import config
+from types import SimpleNamespace
 
-from clients.base import ResourceClient
-from models.resource import Resource
-from utils.kms import parse_crypto_key_name
-
-
-class KmsClient(ResourceClient):
-    """Cloud KMS CryptoKey resource adapter."""
-
+class KMSClient:
     def __init__(self):
         self.client = kms_v1.KeyManagementServiceClient()
+        self.dry_run = config.DRY_RUN
 
-    def supports(
-        self,
-        asset_type: str,
-    ):
-        return (
-            asset_type
-            == "cloudkms.googleapis.com/CryptoKey"
-        )
+    def supports(self, asset_type: str) -> bool:
+        supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
+        return asset_type in supported_types and asset_type.startswith("cloudkms.googleapis.com/")
 
-    def labels(
-        self,
-        resource,
-    ):
-        crypto_key = self.client.get_crypto_key(
-            request={
-                "name": resource.name.replace(
-                    "//cloudkms.googleapis.com/",
-                    "",
-                    1,
-                )
-            }
-        )
+    def _parse_resource_name(self, resource_url: str):
+        # Format: //cloudkms.googleapis.com/projects/P/locations/L/keyRings/R/cryptoKeys/K
+        return resource_url.replace("//cloudkms.googleapis.com/", "")
 
-        return dict(
-            crypto_key.labels or {}
-        )
+    def get(self, resource_name: str, **kwargs):
+        key_name = self._parse_resource_name(resource_name)
+        try:
+            key = self.client.get_crypto_key(name=key_name)
+            return SimpleNamespace(name=resource_name, labels=dict(key.labels) or {}, tags={})
+        except Exception as e:
+            logger.error(f"Failed to fetch CryptoKey {key_name}: {e}")
+            raise
 
-    def get(
-        self,
-        resource_name: str,
-    ) -> Resource:
-        crypto_key = self.client.get_crypto_key(
-            request={
-                "name": resource_name.replace(
-                    "//cloudkms.googleapis.com/",
-                    "",
-                    1,
-                )
-            }
-        )
-
-        info = parse_crypto_key_name(
-            resource_name
-        )
-
-        return Resource(
-            asset_type="cloudkms.googleapis.com/CryptoKey",
-            name=resource_name,
-            project=info["project"],
-            location=info["location"],
-            labels=dict(
-                crypto_key.labels or {}
-            ),
-            tags={},
-        )
-
-    def apply_labels(
-        self,
-        resource,
-        labels: dict,
-    ):
-        crypto_key = self.client.get_crypto_key(
-            request={
-                "name": resource.name.replace(
-                    "//cloudkms.googleapis.com/",
-                    "",
-                    1,
-                )
-            }
-        )
-
-        existing = dict(
-            crypto_key.labels or {}
-        )
-
-        if config.PRESERVE_EXISTING_LABELS:
-            merged = existing.copy()
-
-            for key, value in labels.items():
-                if key not in merged:
-                    merged[key] = value
-        else:
-            merged = existing.copy()
-            merged.update(labels)
-
-        if merged == existing:
+    def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
+        if self.dry_run:
+            logger.info(f"[DRY RUN] Would patch CryptoKey {resource_name} with {labels}")
             return True
 
-        crypto_key.labels = merged
-
-        operation = self.client.update_crypto_key(
-            request={
-                "crypto_key": crypto_key,
-                "update_mask": FieldMask(
-                    paths=["labels"],
-                ),
-            }
-        )
-
-        return operation
+        key_name = self._parse_resource_name(resource_name)
+        try:
+            key = self.client.get_crypto_key(name=key_name)
+            key.labels = labels
+            
+            self.client.update_crypto_key(
+                crypto_key=key,
+                update_mask={"paths": ["labels"]}
+            )
+            
+            logger.info(f"Successfully patched CryptoKey {key_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to patch CryptoKey {key_name}: {e}")
+            return False
