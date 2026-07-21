@@ -44,7 +44,7 @@ class AdapterService:
             KMSClient(),
             PubSubClient(),
             ProjectClient(),
-            GkeClient(),
+            GKEClient(),
             CloudRunClient(),
             CloudSqlClient(),
             ArtifactRegistryClient(),
