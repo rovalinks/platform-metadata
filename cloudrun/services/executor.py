@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import math
 import time
-from google.api_core.exceptions import BadRequest
+from google.api_core.exceptions import BadRequest, NotFound
 import config
 from repositories.execution_repository import ExecutionRepository
 from repositories.remediation_repository import RemediationRepository
@@ -59,10 +59,9 @@ class ExecutorService:
         try:
             resource = client.get(action["resource"])
             
-            # --- ADD THIS NULL CHECK ---
+            # --- NULL CHECK ---
             if resource is None:
                 logger.info("Resource %s is tag-only or unsupported for labels. Bypassing.", action["resource"])
-                # Return 'bypassed' (or 'compliant') instead of 'failed' so the dashboard stays clean
                 return {"resource": action["resource"], "status": "bypassed"}
             # ---------------------------
 
@@ -78,6 +77,12 @@ class ExecutorService:
             
             logger.info("Successfully updated %s", action["resource"])
             return {"resource": action["resource"], "status": "updated"}
+            
+        except NotFound:
+            # CLEANLY CATCH 404s FOR DELETED RESOURCES
+            logger.warning("Resource %s not found (likely deleted). Bypassing.", action["resource"])
+            return {"resource": action["resource"], "status": "bypassed"}
+            
         except Exception as error:
             logger.exception("Failed updating %s", action["resource"])
             return {"resource": action["resource"], "status": "failed", "error": format_gcp_exception(error)}
