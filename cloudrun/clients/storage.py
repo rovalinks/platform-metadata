@@ -41,3 +41,4 @@ class StorageClient:
         except Exception as e:
             logger.error(f"Failed to patch Storage Bucket {bucket_name}: {e}")
             return False
+            
