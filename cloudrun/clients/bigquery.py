@@ -1,11 +1,17 @@
 from google.cloud import bigquery
 from utils.logger import logger
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 import config
 
 class BigQueryClient:
     def __init__(self):
         self.client = bigquery.Client()
         self.dry_run = config.DRY_RUN
+
+    def supports(self, asset_type: str) -> bool:
+        """Dynamically checks if this client supports the asset based on central config."""
+        supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
+        return asset_type in supported_types and asset_type.startswith("bigquery.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
         """Converts CAI/Eventarc URL to BQ SDK format (project.dataset.table)"""
