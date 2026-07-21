@@ -27,21 +27,22 @@ class ArtifactRegistryClient:
         return f"projects/{project}/locations/{location}/repositories/{repo}"
 
     def get(self, resource_name: str, **kwargs):
-        repo_name = self._parse_resource_name(resource_name)[cite: 4]
-        if not repo_name: return None # <--- ADD THIS[cite: 4]
+        repo_name = self._parse_resource_name(resource_name)
+        if not repo_name: 
+            return None
         try:
-            repo = self.client.get_repository(name=repo_name)[cite: 4]
+            repo = self.client.get_repository(name=repo_name)
             return SimpleNamespace(name=resource_name, labels=dict(repo.labels) or {}, tags={})
         except Exception as e:
             logger.error(f"Failed to fetch Artifact Registry {repo_name}: {e}")
             raise
 
     def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
-        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource[cite: 4]
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         
-        repo_name = self._parse_resource_name(resource_name)[cite: 4]
-        if not repo_name: # <--- ADD THIS[cite: 4]
-            return True[cite: 4]
+        repo_name = self._parse_resource_name(resource_name)
+        if not repo_name: 
+            return True
 
         if self.dry_run:
             logger.info(f"[DRY RUN] Would patch Artifact Registry {resource_name} with {labels}")
