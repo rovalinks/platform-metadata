@@ -7,6 +7,8 @@ from types import SimpleNamespace
 class DataplexClient:
     def __init__(self):
         self.client = dataplex_v1.DataplexServiceClient()
+        # FIX: EntryGroups require the CatalogServiceClient
+        self.catalog_client = dataplex_v1.CatalogServiceClient() 
         self.datascan_client = dataplex_v1.DataScanServiceClient()
         self.dry_run = config.DRY_RUN
 
@@ -28,7 +30,8 @@ class DataplexClient:
         res_path, res_type = self._parse_resource_name(resource_name)
         try:
             if res_type == "EntryGroup":
-                group = self.client.get_entry_group(name=res_path)
+                # FIX: Use catalog_client
+                group = self.catalog_client.get_entry_group(name=res_path)
                 return SimpleNamespace(name=resource_name, labels=dict(group.labels) or {}, tags={})
             elif res_type == "DataScan":
                 scan = self.datascan_client.get_data_scan(name=res_path)
@@ -48,7 +51,8 @@ class DataplexClient:
         try:
             if res_type == "EntryGroup":
                 group = dataplex_v1.EntryGroup(name=res_path, labels=labels)
-                self.client.update_entry_group(entry_group=group, update_mask={"paths": ["labels"]})
+                # FIX: Use catalog_client
+                self.catalog_client.update_entry_group(entry_group=group, update_mask={"paths": ["labels"]})
             elif res_type == "DataScan":
                 scan = dataplex_v1.DataScan(name=res_path, labels=labels)
                 self.datascan_client.update_data_scan(data_scan=scan, update_mask={"paths": ["labels"]})
