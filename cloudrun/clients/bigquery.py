@@ -9,14 +9,11 @@ class BigQueryClient:
         self.dry_run = config.DRY_RUN
 
     def supports(self, asset_type: str) -> bool:
-        """Dynamically checks if this client supports the asset based on central config."""
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
         return asset_type in supported_types and asset_type.startswith("bigquery.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        """Converts CAI/Eventarc URL to BQ SDK format (project.dataset.table)"""
         parts = resource_url.replace("//bigquery.googleapis.com/", "").split("/")
-        
         project = parts[parts.index("projects") + 1] if "projects" in parts else None
         dataset = parts[parts.index("datasets") + 1] if "datasets" in parts else None
         table = parts[parts.index("tables") + 1] if "tables" in parts else None
@@ -29,9 +26,9 @@ class BigQueryClient:
         else:
             return f"{project}.{dataset}", "Dataset"
 
-    def get(self, resource_name: str, asset_type: str) -> dict:
+    # Fixed signature to accept executor.py contract
+    def get(self, resource_name: str, **kwargs) -> dict:
         bq_id, res_type = self._parse_resource_name(resource_name)
-        
         try:
             if res_type == "Dataset":
                 dataset = self.client.get_dataset(bq_id)
@@ -43,13 +40,13 @@ class BigQueryClient:
             logger.error(f"Failed to fetch BigQuery {res_type} {bq_id}: {e}")
             raise
 
-    def patch(self, resource_name: str, asset_type: str, expected_labels: dict, expected_tags: dict) -> bool:
+    # Fixed signature to accept executor.py contract
+    def patch(self, resource_name: str, expected_labels: dict, expected_tags: dict, **kwargs) -> bool:
         if self.dry_run:
-            logger.info(f"[DRY RUN] Would patch BigQuery {asset_type} {resource_name} with {expected_labels}")
+            logger.info(f"[DRY RUN] Would patch BigQuery {resource_name} with {expected_labels}")
             return True
 
         bq_id, res_type = self._parse_resource_name(resource_name)
-
         try:
             if res_type == "Dataset":
                 dataset = self.client.get_dataset(bq_id)

@@ -1,5 +1,6 @@
 from google.cloud import storage
 from utils.logger import logger
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 import config
 
 class StorageClient:
@@ -7,11 +8,16 @@ class StorageClient:
         self.client = storage.Client()
         self.dry_run = config.DRY_RUN
 
+    # Fixed missing supports method
+    def supports(self, asset_type: str) -> bool:
+        supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
+        return asset_type in supported_types and asset_type.startswith("storage.googleapis.com/")
+
     def _parse_bucket_name(self, resource_url: str) -> str:
-        # Resource URLs usually look like: projects/_/buckets/my-bucket-name
         return resource_url.split("/")[-1]
 
-    def get(self, resource_name: str, asset_type: str) -> dict:
+    # Fixed signature to accept executor.py contract
+    def get(self, resource_name: str, **kwargs) -> dict:
         bucket_name = self._parse_bucket_name(resource_name)
         try:
             bucket = self.client.get_bucket(bucket_name)
@@ -20,7 +26,8 @@ class StorageClient:
             logger.error(f"Failed to fetch Storage Bucket {bucket_name}: {e}")
             raise
 
-    def patch(self, resource_name: str, asset_type: str, expected_labels: dict, expected_tags: dict) -> bool:
+    # Fixed signature to accept executor.py contract
+    def patch(self, resource_name: str, expected_labels: dict, expected_tags: dict, **kwargs) -> bool:
         if self.dry_run:
             logger.info(f"[DRY RUN] Would patch Storage Bucket {resource_name} with labels: {expected_labels}")
             return True
@@ -29,7 +36,6 @@ class StorageClient:
         try:
             bucket = self.client.get_bucket(bucket_name)
             
-            # Merge existing labels with expected labels
             current_labels = bucket.labels or {}
             current_labels.update(expected_labels)
             
@@ -41,4 +47,3 @@ class StorageClient:
         except Exception as e:
             logger.error(f"Failed to patch Storage Bucket {bucket_name}: {e}")
             return False
-            
