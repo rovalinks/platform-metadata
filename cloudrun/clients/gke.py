@@ -1,290 +1,64 @@
 from google.cloud import container_v1
-from google.api_core.exceptions import (
-    NotFound,
-    FailedPrecondition,
-)
-
-from clients.base import ResourceClient
-from models.resource import Resource
 from utils.logger import logger
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
+import config
+from types import SimpleNamespace
 
-
-class GkeClient(ResourceClient):
-    """Google Kubernetes Engine resource adapter."""
-
+class GKEClient:
     def __init__(self):
-        self.client = (
-            container_v1.ClusterManagerClient()
-        )
+        self.client = container_v1.ClusterManagerClient()
+        self.dry_run = config.DRY_RUN
 
-    def supports(
-        self,
-        asset_type: str,
-    ):
-        return [
-            "container.googleapis.com/Cluster",
-            "container.googleapis.com/NodePool",
-        ].__contains__(asset_type)
+    def supports(self, asset_type: str) -> bool:
+        supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
+        return asset_type in supported_types and asset_type.startswith("container.googleapis.com/")
 
-    def labels(
-        self,
-        resource,
-    ):
-        #
-        # Cluster
-        #
-        if (
-            "/clusters/" in resource.name
-            and "/nodePools/" not in resource.name
-        ):
+    def _parse_resource_name(self, resource_url: str):
+        # Format: //container.googleapis.com/projects/P/locations/L/clusters/C
+        parts = resource_url.replace("//container.googleapis.com/", "").split("/")
+        project = parts[parts.index("projects") + 1]
+        
+        if "locations" in parts:
+            location = parts[parts.index("locations") + 1]
+        elif "zones" in parts: # CAI sometimes returns zones for zonal clusters
+            location = parts[parts.index("zones") + 1]
+        else:
+            raise ValueError(f"Could not parse location from GKE cluster: {resource_url}")
+            
+        cluster = parts[parts.index("clusters") + 1]
+        return f"projects/{project}/locations/{location}/clusters/{cluster}"
 
-            try:
-
-                cluster = self.client.get_cluster(
-                    name=self._cluster_name(
-                        resource.name
-                    )
-                )
-
-            except NotFound:
-
-                logger.warning(
-                    "Cluster %s no longer exists. Skipping.",
-                    resource.name,
-                )
-
-                return None
-
-            return dict(
-                cluster.resource_labels or {}
-            )
-
-        #
-        # Node Pool
-        #
+    def get(self, resource_name: str, **kwargs):
+        cluster_name = self._parse_resource_name(resource_name)
         try:
+            cluster = self.client.get_cluster(name=cluster_name)
+            # Map GKE's 'resource_labels' to the standard 'labels' expected by executor.py
+            return SimpleNamespace(name=resource_name, labels=dict(cluster.resource_labels) or {}, tags={})
+        except Exception as e:
+            logger.error(f"Failed to fetch GKE Cluster {cluster_name}: {e}")
+            raise
 
-            node_pool = self.client.get_node_pool(
-                name=self._nodepool_name(
-                    resource.name
-                )
-            )
-
-        except NotFound:
-
-            logger.warning(
-                "Node pool %s no longer exists. Skipping.",
-                resource.name,
-            )
-
-            return None
-
-        return dict(
-            node_pool.config.labels or {}
-        )
-
-    def get(
-        self,
-        resource_name: str,
-    ) -> Resource | None:
-
-        #
-        # Cluster
-        #
-        if (
-            "/clusters/" in resource_name
-            and "/nodePools/" not in resource_name
-        ):
-
-            try:
-
-                cluster = self.client.get_cluster(
-                    name=self._cluster_name(
-                        resource_name
-                    )
-                )
-
-            except NotFound:
-
-                logger.warning(
-                    "Cluster %s disappeared during discovery.",
-                    resource_name,
-                )
-
-                return None
-
-            parts = resource_name.split("/")
-
-            return Resource(
-                asset_type="container.googleapis.com/Cluster",
-                name=resource_name,
-                project=parts[1],
-                location=parts[3],
-                labels=dict(
-                    cluster.resource_labels or {}
-                ),
-                tags={},
-            )
-
-        #
-        # Node Pool
-        #
-        try:
-
-            node_pool = self.client.get_node_pool(
-                name=self._nodepool_name(
-                    resource_name
-                )
-            )
-
-        except NotFound:
-
-            logger.warning(
-                "Node pool %s disappeared during discovery.",
-                resource_name,
-            )
-
-            return None
-
-        parts = resource_name.split("/")
-
-        return Resource(
-            asset_type="container.googleapis.com/NodePool",
-            name=resource_name,
-            project=parts[1],
-            location=parts[3],
-            labels=dict(
-                node_pool.config.labels or {}
-            ),
-            tags={},
-        )
-
-    def apply_labels(
-        self,
-        resource,
-        labels: dict,
-    ):
-
-        #
-        # Cluster
-        #
-        if (
-            "/clusters/" in resource.name
-            and "/nodePools/" not in resource.name
-        ):
-
-            try:
-
-                cluster = self.client.get_cluster(
-                    name=self._cluster_name(
-                        resource.name
-                    )
-                )
-
-            except NotFound:
-
-                logger.warning(
-                    "Cluster %s disappeared before remediation.",
-                    resource.name,
-                )
-
-                return False
-
-            merged = dict(
-                cluster.resource_labels or {}
-            )
-
-            merged.update(labels)
-
-            request = (
-                container_v1.SetLabelsRequest(
-                    name=cluster.name,
-                    resource_labels=merged,
-                    label_fingerprint=cluster.label_fingerprint,
-                )
-            )
-
-            try:
-
-                self.client.set_labels(
-                    request=request
-                )
-
-            except FailedPrecondition:
-
-                logger.warning(
-                    "Cluster %s is currently updating.",
-                    resource.name,
-                )
-
-                return False
-
+    def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
+        if self.dry_run:
+            logger.info(f"[DRY RUN] Would patch GKE Cluster {resource_name} with {labels}")
             return True
 
-        #
-        # Node Pool
-        #
+        cluster_name = self._parse_resource_name(resource_name)
         try:
-
-            node_pool = self.client.get_node_pool(
-                name=self._nodepool_name(
-                    resource.name
-                )
+            # We must fetch the cluster first to get the label_fingerprint for optimistic locking
+            cluster = self.client.get_cluster(name=cluster_name)
+            
+            request = container_v1.SetLabelsRequest(
+                name=cluster_name,
+                resource_version=cluster.label_fingerprint,
+                resource_labels=labels
             )
-
-        except NotFound:
-
-            logger.warning(
-                "Node pool %s disappeared before remediation.",
-                resource.name,
-            )
-
+            
+            self.client.set_labels(request=request)
+            logger.info(f"Successfully patched GKE Cluster {cluster_name}")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to patch GKE Cluster {cluster_name}: {e}")
             return False
-
-        merged = dict(
-            node_pool.config.labels or {}
-        )
-
-        merged.update(labels)
-
-        request = (
-            container_v1.UpdateNodePoolRequest(
-                name=node_pool.name,
-                node_labels=merged,
-            )
-        )
-
-        try:
-
-            self.client.update_node_pool(
-                request=request
-            )
-
-        except FailedPrecondition:
-
-            logger.warning(
-                "Node pool %s is currently updating.",
-                resource.name,
-            )
-
-            return False
-
-        return True
-
-    @staticmethod
-    def _cluster_name(
-        asset_name: str,
-    ):
-        return asset_name.replace(
-            "//container.googleapis.com/",
-            "",
-        )
-
-    @staticmethod
-    def _nodepool_name(
-        asset_name: str,
-    ):
-        return asset_name.replace(
-            "//container.googleapis.com/",
-            "",
-        )

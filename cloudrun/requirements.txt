@@ -19,6 +19,11 @@ google-cloud-resource-manager>=1.14.0
 google-cloud-kms
 google-cloud-pubsub>=2.19.0
 requests>=2.31.0
+google-cloud-container>=2.35.0
+google-cloud-run>=0.10.0
+
+
+
 
 google-cloud-artifact-registry
 google-cloud-container
