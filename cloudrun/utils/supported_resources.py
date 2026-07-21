@@ -45,6 +45,10 @@ SUPPORTED_LABEL_RESOURCES = {
     "dataplex.googleapis.com/EntryGroup",
     "dataplex.googleapis.com/DataScan",
 
+
+    "appengine.googleapis.com/Application",
+    "redis.googleapis.com/Instance",
+
     # "container.googleapis.com/Cluster",
     # "container.googleapis.com/NodePool",
     # "secretmanager.googleapis.com/Secret",

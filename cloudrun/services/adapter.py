@@ -17,11 +17,12 @@ from clients.artifactregistry import ArtifactRegistryClient
 from clients.cloudfunctions import CloudFunctionsClient
 from clients.vertex import VertexClient
 from clients.dataplex import DataplexClient
+from clients.appengine import AppEngineClient
+from clients.redis import RedisClient
 
 # from clients.bigquery_reservation import BigQueryReservationClient
 # from clients.secret_manager import SecretManagerClient
 #from clients.apikeys import ApiKeysClient
-from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
 
 
@@ -50,12 +51,12 @@ class AdapterService:
             CloudFunctionsClient(),
             VertexClient(),
             DataplexClient(),
+            AppEngineClient(),
+            RedisClient(),
 
-            
             # SecretManagerClient(),
             # KmsClient(),
             # ApiKeysClient(),
-            AppEngineClient(),
             FunctionsClient(),
         ]
 
