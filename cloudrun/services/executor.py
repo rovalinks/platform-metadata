@@ -72,8 +72,12 @@ class ExecutorService:
                     allowed=list(action["labels"].keys())
                 )
                 client.apply_labels(resource, final_labels)
+                
             elif self.capability.supports_tags(action["asset_type"]):
-                self.tag_service.apply_tags(resource_name=resource.name, desired_tags=action["tags"], managed_tags=[])
+                # --- TAGS TEMPORARILY DISABLED ---
+                logger.info("Resource %s is Tag-only. Tags are currently disabled by configuration. Bypassing.", action["resource"])
+                return {"resource": action["resource"], "status": "bypassed"}
+                # ---------------------------------
             
             logger.info("Successfully updated %s", action["resource"])
             return {"resource": action["resource"], "status": "updated"}
