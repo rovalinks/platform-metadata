@@ -18,6 +18,7 @@ from clients.kms import KMSClient
 #from clients.apikeys import ApiKeysClient
 from clients.appengine import AppEngineClient
 from clients.functions import FunctionsClient
+from clients.cloudsql import CloudSQLClient
 
 logger = logging.getLogger(__name__)
 
@@ -36,9 +37,8 @@ class AdapterService:
             ResourceManagerClient(),
             KMSClient(),
             PubSubClient(),
-            # CloudSqlClient(),
+            CloudSqlClient(),
             # ArtifactRegistryClient(),
-            # PubSubClient(),
             # GkeClient(),
             # SecretManagerClient(),
             # ProjectClient(),

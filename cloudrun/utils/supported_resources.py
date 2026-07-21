@@ -28,9 +28,8 @@ SUPPORTED_LABEL_RESOURCES = {
 
     "pubsub.googleapis.com/Topic",
     "pubsub.googleapis.com/Subscription",
+    "sqladmin.googleapis.com/Instance",
     
-    
-    # "sqladmin.googleapis.com/Instance",
     # "artifactregistry.googleapis.com/Repository",
     # "container.googleapis.com/Cluster",
     # "container.googleapis.com/NodePool",
