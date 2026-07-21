@@ -14,6 +14,10 @@ from extractors.vertex import VertexExtractor
 from extractors.dataplex import DataplexExtractor
 from extractors.appengine import AppEngineExtractor
 from extractors.redis import RedisExtractor
+from extractors.monitoring import MonitoringExtractor
+from extractors.dataform import DataformExtractor
+from extractors.dns import DNSExtractor
+from extractors.alloydb import AlloyDBExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -34,6 +38,10 @@ class ClassificationService:
             "dataplex.googleapis.com": DataplexExtractor(),
             "appengine.googleapis.com": AppEngineExtractor(),
             "redis.googleapis.com": RedisExtractor(),
+            "monitoring.googleapis.com": MonitoringExtractor(),
+            "dataform.googleapis.com": DataformExtractor(),
+            "dns.googleapis.com": DNSExtractor(),
+            "alloydb.googleapis.com": AlloyDBExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:
