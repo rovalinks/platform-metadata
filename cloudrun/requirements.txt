@@ -30,14 +30,4 @@ google-cloud-redis>=2.15.0
 google-cloud-monitoring>=2.20.0
 google-cloud-dataform>=0.8.0
 google-cloud-alloydb>=0.3.0
-google-cloud-dns>=3.5.0
-
-
-google-cloud-artifact-registry
-google-cloud-container
-google-cloud-asset
-google-cloud-secret-manager>=2.23.0
-google-cloud-api-keys
-google-cloud-appengine-admin
-google-cloud-functions>=1.20.0
-google-cloud-tasks>=2.18.0
+google-cloud-dns>=0.34.0
