@@ -149,21 +149,25 @@ class ComputeClient(ResourceClient):
         try: return run()
         except PreconditionFailed: return run()
         
-    def apply_labels(self, res, labels: dict):
-        info = self._parse_resource_url(res.name)
+    def apply_labels(self, resource, labels: dict, **kwargs):
+        # 1. Safely extract the string URL whether executor passed the object or the string
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
+        info = self._parse_resource_url(resource_name)
         entry = self.REGISTRY.get((info["resource_type"], info["scope_type"]))
 
         # --- ROUTER OVERRIDE ---
         if entry["client_attr"] == "routers":
             from google.cloud import compute_v1
             
-            parts = resource.name.split('/')
+            # FIXED: using resource_name safely
+            parts = resource_name.split('/')
             project_id = parts[parts.index("projects") + 1]
             region = parts[parts.index("regions") + 1]
             router_name = parts[-1]
             
-            # Construct the exact protobuf message GCP expects
-            router_patch = compute_v1.Router(labels=final_labels)
+            # FIXED: using 'labels' instead of 'final_labels'
+            router_patch = compute_v1.Router(labels=labels)
             
             self.routers.patch(
                 project=project_id,
@@ -171,7 +175,7 @@ class ComputeClient(ResourceClient):
                 router=router_name,
                 router_resource=router_patch
             )
-            return
+            return True
         # -----------------------
         
         if not entry or not entry.get("set_labels_request_cls"): return True
@@ -180,16 +184,16 @@ class ComputeClient(ResourceClient):
         scope_arg = {"zone" if info["scope_type"] == "zones" else "region": info["scope_value"]} if info["scope_type"] in ("zones", "regions") else {}
         
         def get_r():
-            kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
-            kwargs.update(scope_arg)
-            return client.get(**kwargs)
+            get_kwargs = {"project": info["project"], entry["get_arg"]: info["name"]}
+            get_kwargs.update(scope_arg)
+            return client.get(**get_kwargs)
             
         def set_r(req):
             set_target = entry.get("set_arg", entry["get_arg"]) 
-            kwargs = {"project": info["project"], set_target: info["name"]}
-            kwargs.update(scope_arg)
-            kwargs[entry["set_labels_arg_name"]] = req
-            return meth(**kwargs)
+            set_kwargs = {"project": info["project"], set_target: info["name"]}
+            set_kwargs.update(scope_arg)
+            set_kwargs[entry["set_labels_arg_name"]] = req
+            return meth(**set_kwargs)
             
         op = self._apply_labels_generic(get_r, set_r, entry["set_labels_request_cls"], labels)
         if op and op is not True:
