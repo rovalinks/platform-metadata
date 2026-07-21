@@ -35,7 +35,7 @@ class DiscoveryService:
                 location=asset.location,
             )
 
-            # Check if the bucket should be excluded
+            # Check if the bucket should be explicitly excluded from config
             if (
                 resource.asset_type == "storage.googleapis.com/Bucket"
                 and any(bucket.lower() in resource.name.lower() for bucket in config.EXCLUDED_BUCKETS)
@@ -43,14 +43,43 @@ class DiscoveryService:
                 logger.info("Skipping excluded bucket %s", resource.name)
                 continue
 
-            # resource = self.adapter.enrich(resource)
+            # =================================================================
+            # COMPREHENSIVE DEFAULT GCP RESOURCE FILTER
+            # =================================================================
+            is_default = False
+            asset_type_lower = resource.asset_type.lower()
+            res_name_lower = resource.name.lower()
+
+            # 1. Compute Engine Defaults
+            if "compute.googleapis.com" in asset_type_lower:
+                if res_name_lower.endswith("/networks/default"): is_default = True
+                elif "/subnetworks/default" in res_name_lower: is_default = True
+                elif "/firewalls/default-" in res_name_lower: is_default = True
+                elif "/routes/default-route" in res_name_lower: is_default = True
+
+            # 2. Cloud Storage Defaults (Google Managed)
+            elif "storage.googleapis.com/bucket" in asset_type_lower:
+                if "artifacts." in res_name_lower and ".appspot.com" in res_name_lower: is_default = True
+                elif "gcf-sources-" in res_name_lower: is_default = True
+                elif "cloud-build-logs-" in res_name_lower: is_default = True
+                elif res_name_lower.endswith("_cloudbuild"): is_default = True
+
+            # 3. IAM / Service Accounts (Compute and AppEngine defaults)
+            elif "iam.googleapis.com/serviceaccount" in asset_type_lower:
+                if "-compute@developer.gserviceaccount.com" in res_name_lower: is_default = True
+                elif "@appspot.gserviceaccount.com" in res_name_lower: is_default = True
+
+            if is_default:
+                logger.info("Skipping default Google-managed resource: %s", resource.name)
+                continue
+            # =================================================================
 
             if resource is None:
                 continue
 
             resources.append(resource)
 
-        logger.info("Discovered %d resources", len(resources))
+        logger.info("Discovered %d real resources", len(resources))
 
         if run_id:
             self.snapshot.save_inventory(resources, run_id)
