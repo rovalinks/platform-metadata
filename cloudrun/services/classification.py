@@ -12,6 +12,8 @@ from extractors.artifactregistry import ArtifactRegistryExtractor
 from extractors.cloudfunctions import CloudFunctionsExtractor
 from extractors.vertex import VertexExtractor
 from extractors.dataplex import DataplexExtractor
+from extractors.appengine import AppEngineExtractor
+from extractors.redis import RedisExtractor
 
 class ClassificationService:
     def __init__(self):
@@ -30,6 +32,8 @@ class ClassificationService:
             "cloudfunctions.googleapis.com": CloudFunctionsExtractor(),
             "aiplatform.googleapis.com": VertexExtractor(),
             "dataplex.googleapis.com": DataplexExtractor(),
+            "appengine.googleapis.com": AppEngineExtractor(),
+            "redis.googleapis.com": RedisExtractor(),
         }
 
     def classify(self, audit_event: dict) -> list:
