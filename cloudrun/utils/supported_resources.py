@@ -25,17 +25,18 @@ SUPPORTED_LABEL_RESOURCES = {
 
     "cloudresourcemanager.googleapis.com/Project",
     "cloudkms.googleapis.com/CryptoKey",
+
+    "pubsub.googleapis.com/Topic",
+    "pubsub.googleapis.com/Subscription",
     
     
-    # "bigquery.googleapis.com/Dataset",
     # "sqladmin.googleapis.com/Instance",
     # "artifactregistry.googleapis.com/Repository",
-    #"pubsub.googleapis.com/Topic",
     # "container.googleapis.com/Cluster",
     # "container.googleapis.com/NodePool",
     # "secretmanager.googleapis.com/Secret",
-    # "cloudresourcemanager.googleapis.com/Project",
-    # "cloudkms.googleapis.com/CryptoKey",
+
+
     # "apikeys.googleapis.com/Key",
     # "appengine.googleapis.com/Application",
     # "appengine.googleapis.com/Service",
