@@ -32,7 +32,6 @@
                 <label for="project">Project</label>
                 <select id="project" disabled>
                     <option value="">All Projects</option>
-                    <!-- Dynamically populated or include hardcoded option if needed -->
                     <option value="payments-dev-1">payments-dev-1</option>
                 </select>
             </div>
@@ -119,7 +118,6 @@
 <!-- JavaScript for Brownfield Trigger -->
 <script>
 async function triggerBrownfield() {
-    // Uses your dashboard's active project dropdown
     const projectSelect = document.getElementById('project');
     const projectId = projectSelect.value;
     
@@ -142,6 +140,7 @@ async function triggerBrownfield() {
         const result = await response.json();
         if (response.ok) {
             alert(`✅ Brownfield scan initiated for ${projectId}!\nRun ID: ${result.run_id || 'Started'}`);
+            setTimeout(() => window.location.reload(), 2000);
         } else {
             alert(`❌ Failed to start scan: ${result.error || 'Unknown error'}`);
         }
