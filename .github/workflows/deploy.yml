@@ -9,7 +9,7 @@ on:
       - "Dockerfile"
       - ".github/workflows/deploy.yml"
   release:
-    types: [published] # Triggers the PROD deployment
+    types: [published]
 
 permissions:
   contents: read
@@ -69,7 +69,6 @@ jobs:
           workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
           service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
-      # OPTIMIZATION 1: Skip GCloud Install (~30 seconds saved)
       - name: Setup Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
         with:
@@ -78,17 +77,16 @@ jobs:
       - name: Docker Auth
         run: gcloud auth configure-docker ${{ vars.REGION }}-docker.pkg.dev --quiet
 
-      # OPTIMIZATION 2: Set up Docker Buildx
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # OPTIMIZATION 3: Native GitHub Actions Docker Caching (~2 mins saved)
+      # CORRECTED: Image tag is explicitly governance-engine
       - name: Build and Push Container
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}
+          tags: ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -126,12 +124,13 @@ jobs:
               f.write(content)
           '
 
+      # CORRECTED: Pulls the governance-engine image specifically
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
             --project=${{ vars.PROJECT_ID }} \
             --region=${{ vars.REGION }} \
-            --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}" \
+            --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }}
 
   # ==========================================
@@ -165,12 +164,13 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # CORRECTED: Image tag is explicitly governance-engine
       - name: Build and Push Container
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}
+          tags: ${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -208,10 +208,11 @@ jobs:
               f.write(content)
           '
 
+      # CORRECTED: Pulls the governance-engine image specifically
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
             --project=${{ vars.PROJECT_ID }} \
             --region=${{ vars.REGION }} \
-            --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}:${{ github.sha }}" \
+            --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }}
