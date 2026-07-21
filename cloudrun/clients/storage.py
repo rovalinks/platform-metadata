@@ -9,7 +9,6 @@ class StorageClient:
         self.client = storage.Client()
         self.dry_run = config.DRY_RUN
 
-    # Fixed missing supports method
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
         return asset_type in supported_types and asset_type.startswith("storage.googleapis.com/")
@@ -17,30 +16,27 @@ class StorageClient:
     def _parse_bucket_name(self, resource_url: str) -> str:
         return resource_url.split("/")[-1]
 
-    # Fixed signature to accept executor.py contract
     def get(self, resource_name: str, **kwargs):
         bucket_name = self._parse_bucket_name(resource_name)
         try:
             bucket = self.client.get_bucket(bucket_name)
-            return SimpleNamespace(labels=bucket.labels or {}, tags={})
+            return SimpleNamespace(name=resource_name, labels=bucket.labels or {}, tags={})
         except Exception as e:
             logger.error(f"Failed to fetch Storage Bucket {bucket_name}: {e}")
             raise
 
-    # Fixed signature to accept executor.py contract
-    def patch(self, resource_name: str, expected_labels: dict, expected_tags: dict, **kwargs) -> bool:
+    # EXACT METHOD SIGNATURE EXPECTED BY EXECUTOR.PY
+    def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
         if self.dry_run:
-            logger.info(f"[DRY RUN] Would patch Storage Bucket {resource_name} with labels: {expected_labels}")
+            logger.info(f"[DRY RUN] Would patch Storage Bucket {resource_name} with labels: {labels}")
             return True
 
         bucket_name = self._parse_bucket_name(resource_name)
         try:
             bucket = self.client.get_bucket(bucket_name)
-            
-            current_labels = bucket.labels or {}
-            current_labels.update(expected_labels)
-            
-            bucket.labels = current_labels
+            bucket.labels = labels
             bucket.patch()
             
             logger.info(f"Successfully patched Storage Bucket {bucket_name}")

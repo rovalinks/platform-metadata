@@ -27,36 +27,37 @@ class BigQueryClient:
         else:
             return f"{project}.{dataset}", "Dataset"
 
-    # Fixed signature to accept executor.py contract
     def get(self, resource_name: str, **kwargs):
         bq_id, res_type = self._parse_resource_name(resource_name)
         try:
             if res_type == "Dataset":
                 dataset = self.client.get_dataset(bq_id)
-                return SimpleNamespace(labels=dataset.labels or {}, tags={})
+                return SimpleNamespace(name=resource_name, labels=dataset.labels or {}, tags={})
             elif res_type in ["Table", "Model"]:
                 table = self.client.get_table(bq_id)
-                return SimpleNamespace(labels=table.labels or {}, tags={})
+                return SimpleNamespace(name=resource_name, labels=table.labels or {}, tags={})
         except Exception as e:
             logger.error(f"Failed to fetch BigQuery {res_type} {bq_id}: {e}")
             raise
 
-    # Fixed signature to accept executor.py contract
-    def patch(self, resource_name: str, expected_labels: dict, expected_tags: dict, **kwargs) -> bool:
+    # EXACT METHOD SIGNATURE EXPECTED BY EXECUTOR.PY
+    def apply_labels(self, resource, labels: dict, **kwargs) -> bool:
+        # Safely extract the string URL whether executor passed the object or the string
+        resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
+        
         if self.dry_run:
-            logger.info(f"[DRY RUN] Would patch BigQuery {resource_name} with {expected_labels}")
+            logger.info(f"[DRY RUN] Would patch BigQuery {resource_name} with {labels}")
             return True
 
         bq_id, res_type = self._parse_resource_name(resource_name)
         try:
             if res_type == "Dataset":
                 dataset = self.client.get_dataset(bq_id)
-                dataset.labels = self._merge_labels(dataset.labels, expected_labels)
+                dataset.labels = labels
                 self.client.update_dataset(dataset, ["labels"])
-                
             elif res_type in ["Table", "Model"]:
                 table = self.client.get_table(bq_id)
-                table.labels = self._merge_labels(table.labels, expected_labels)
+                table.labels = labels
                 self.client.update_table(table, ["labels"])
                 
             logger.info(f"Successfully patched BigQuery {res_type} {bq_id}")
@@ -64,10 +65,3 @@ class BigQueryClient:
         except Exception as e:
             logger.error(f"Failed to patch BigQuery {res_type} {bq_id}: {e}")
             return False
-
-    def _merge_labels(self, existing: dict, expected: dict) -> dict:
-        if not existing:
-            return expected
-        merged = existing.copy()
-        merged.update(expected)
-        return merged
