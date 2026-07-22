@@ -71,6 +71,11 @@ class ExecutorService:
                     desired=action["labels"],
                     allowed=list(action["labels"].keys())
                 )
+
+                # --- EXCLUDE 'PRODUCT' LABEL ONLY AT THE PROJECT LEVEL ---
+                if action["asset_type"] == "cloudresourcemanager.googleapis.com/Project":
+                    final_labels.pop("product", None)
+                # ---------------------------------------------------------
                 
                 # =========================================================
                 # GLOBAL DRY RUN INTERCEPTOR
