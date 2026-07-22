@@ -75,7 +75,7 @@ class ExecutorService:
                 # --- EXCLUDE LABELS AT THE PROJECT LEVEL ---
                 if action["asset_type"] == "cloudresourcemanager.googleapis.com/Project":
                     # Strip out resource-specific labels from the global project
-                    for key in ["product", "zone", "region"]:
+                    for key in ["product", "zone", "region", "application"]:
                         final_labels.pop(key, None)
                 # ---------------------------------------------------------
                 
