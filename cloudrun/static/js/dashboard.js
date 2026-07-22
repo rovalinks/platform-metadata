@@ -6,7 +6,11 @@ let loading = false;
 let projectCache = []; // Cache for all discovered projects
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadDashboard();
+    // 1. Fetch the projects for the dropdown FIRST
+    populateProjectDropdown().then(() => {
+        // 2. Then load the dashboard data
+        loadDashboard();
+    });
     
     document.getElementById("refresh").addEventListener("click", () => {
         loadDashboard();
@@ -15,6 +19,30 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("scope").addEventListener("change", onScopeChanged);
     document.getElementById("project").addEventListener("change", loadDashboard);
 });
+
+// ADD THIS MISSING FUNCTION
+async function populateProjectDropdown() {
+    try {
+        const response = await fetch('/reports/projects');
+        const data = await response.json();
+        
+        const dropdown = document.getElementById('project'); 
+        
+        // Clear it and add the default option
+        dropdown.innerHTML = '<option value="">All Projects</option>';
+        
+        if (data.projects && data.projects.length > 0) {
+            data.projects.forEach(project => {
+                const option = document.createElement('option');
+                option.value = project;
+                option.textContent = project;
+                dropdown.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error("Error loading project dropdown:", error);
+    }
+}
 
 async function loadDashboard() {
     if (loading) return;
@@ -57,12 +85,6 @@ async function loadDashboard() {
             renderRecentRuns(data.recent_activity);
             renderNonCompliant(data.top_non_compliant);
         }
-
-        if (data.all_projects) {
-            populateProjects(data.all_projects);
-        } else if (scope === "organization") {
-            populateProjects(data.projects);
-        }
         
         if (selectedProject) {
             projectEl.value = selectedProject;
@@ -91,15 +113,6 @@ function onScopeChanged() {
     }
     if (!project.value) return;
     loadDashboard();
-}
-
-function populateProjects(projects) {
-    if (projects.length > projectCache.length) projectCache = projects;
-    const select = document.getElementById("project");
-    if (!select) return;
-    const current = select.value;
-    select.innerHTML = '<option value="">Select a project...</option>' + projectCache.map(p => `<option value="${p.project_id}">${p.project_id}</option>`).join("");
-    if (projectCache.some(p => p.project_id === current)) select.value = current;
 }
 
 // --- Render Functions ---
