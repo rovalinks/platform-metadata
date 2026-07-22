@@ -59,10 +59,10 @@ class AdapterService:
             RedisClient(),
             SecretManagerClient(),
             ApiKeysClient(),
-            MonitoringClient()
-            DataformClient()
-            DNSClient()
-            AlloyDBClient()
+            MonitoringClient(),
+            DataformClient(),
+            DNSClient(),
+            AlloyDBClient(),
 
             # FunctionsClient(),
         ]
