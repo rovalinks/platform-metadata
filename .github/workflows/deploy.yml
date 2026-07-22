@@ -95,7 +95,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # FIX: Natively inject variables into Cloud Run!
+      # STEP 1: Deploy with all known variables
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
@@ -104,6 +104,15 @@ jobs:
             --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
             --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
+
+      # STEP 2: Fetch the live URL and inject it back into the service so Cloud Tasks works
+      - name: Inject Dynamic Cloud Run URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} --project=${{ vars.PROJECT_ID }} --region=${{ vars.REGION }} --format='value(status.url)')
+          gcloud run services update ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --region=${{ vars.REGION }} \
+            --update-env-vars="CLOUD_RUN_URL=${SERVICE_URL}"
 
   # ==========================================
   # JOB 3: DEPLOY TO PROD
@@ -148,7 +157,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # FIX: Natively inject variables into Cloud Run!
+      # STEP 1: Deploy with all known variables
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
@@ -157,3 +166,12 @@ jobs:
             --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
             --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
+
+      # STEP 2: Fetch the live URL and inject it back into the service so Cloud Tasks works
+      - name: Inject Dynamic Cloud Run URL
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ vars.CLOUD_RUN_SERVICE }} --project=${{ vars.PROJECT_ID }} --region=${{ vars.REGION }} --format='value(status.url)')
+          gcloud run services update ${{ vars.CLOUD_RUN_SERVICE }} \
+            --project=${{ vars.PROJECT_ID }} \
+            --region=${{ vars.REGION }} \
+            --update-env-vars="CLOUD_RUN_URL=${SERVICE_URL}"
