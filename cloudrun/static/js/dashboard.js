@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ADD THIS MISSING FUNCTION
 async function populateProjectDropdown() {
     try {
-        const response = await fetch('/reports/projects');
+        const response = await fetch('/projects_list');
         const data = await response.json();
         
         const dropdown = document.getElementById('project'); 
