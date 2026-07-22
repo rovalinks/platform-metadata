@@ -117,15 +117,6 @@
 
 <!-- JavaScript for Project Initialization & Brownfield Trigger -->
 <script>
-document.addEventListener("DOMContentLoaded", () => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const projectId = urlParams.get('project_id') || 'payments-dev-1'; 
-    
-    const selector = document.getElementById('project');
-    if (selector) {
-        selector.innerHTML = `<option value="${projectId}">${projectId}</option>`;
-    }
-});
 
 async function triggerBrownfield() {
     const projectSelect = document.getElementById('project');
