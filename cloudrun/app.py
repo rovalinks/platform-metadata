@@ -128,6 +128,10 @@ def non_compliant_endpoint():
     return Dispatcher.dispatch(
         "non_compliant"
     )
+
+@app.route('/projects_list', methods=['GET'])
+def projects_list_endpoint():
+    return Dispatcher.dispatch("projects_list")
     
 if __name__ == "__main__":
     app.run(
