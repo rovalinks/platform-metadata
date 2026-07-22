@@ -31,3 +31,5 @@ google-cloud-monitoring>=2.20.0
 google-cloud-dataform>=0.8.0
 google-cloud-alloydb>=0.3.0
 google-cloud-dns>=0.34.0
+google-cloud-secret-manager>=2.20.0
+google-cloud-api-keys>=0.3.0
