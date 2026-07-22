@@ -16,7 +16,6 @@ permissions:
   id-token: write
   security-events: write
 
-# Fixes the Node 20 deprecation warning globally
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
@@ -29,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4 # Unpinned from v4.2.0 to get Node 24 updates
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -85,7 +84,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Container
-        uses: docker/build-push-action@v6 # Bumped to v6 for Node 24 compatibility
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -96,47 +95,15 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate env.yaml
-        env:
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          REGION: ${{ vars.REGION }}
-          TAG_PARENT: ${{ vars.TAG_PARENT }}
-          REGISTRY_BUCKET: ${{ vars.REGISTRY_BUCKET }}
-          BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
-          TASK_QUEUE: ${{ vars.TASK_QUEUE }}
-          SERVICE_ACCOUNT_EMAIL: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
-          DRY_RUN: ${{ vars.DRY_RUN }} 
-        run: |
-          python3 -c '
-          import os
-          content = ""
-          if os.path.exists("cloudrun/env.yaml"):
-              with open("cloudrun/env.yaml", "r") as f:
-                  content = f.read().rstrip() + "\n"
-
-          vars_to_append = [
-              "PROJECT_ID", "REGION", "TAG_PARENT", "REGISTRY_BUCKET",
-              "BIGQUERY_DATASET", "TASK_QUEUE", "SERVICE_ACCOUNT_EMAIL",
-              "DRY_RUN"
-          ]
-
-          for key in vars_to_append:
-              val = os.environ.get(key, "")
-              if val:
-                  content += f"{key}: \"{val}\"\n"
-
-          os.makedirs("cloudrun", exist_ok=True)
-          with open("cloudrun/env.yaml", "w") as f:
-              f.write(content)
-          '
-
+      # FIX: Natively inject variables into Cloud Run!
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
             --project=${{ vars.PROJECT_ID }} \
             --region=${{ vars.REGION }} \
             --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
-            --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }}
+            --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
+            --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ vars.SERVICE_ACCOUNT_EMAIL }},DRY_RUN=${{ vars.DRY_RUN }}"
 
   # ==========================================
   # JOB 3: DEPLOY TO PROD
@@ -170,7 +137,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Build and Push Container
-        uses: docker/build-push-action@v6 # Bumped to v6 for Node 24 compatibility
+        uses: docker/build-push-action@v6
         with:
           context: .
           push: true
@@ -181,44 +148,12 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Generate env.yaml
-        env:
-          PROJECT_ID: ${{ vars.PROJECT_ID }}
-          REGION: ${{ vars.REGION }}
-          TAG_PARENT: ${{ vars.TAG_PARENT }}
-          REGISTRY_BUCKET: ${{ vars.REGISTRY_BUCKET }}
-          BIGQUERY_DATASET: ${{ vars.BIGQUERY_DATASET }}
-          TASK_QUEUE: ${{ vars.TASK_QUEUE }}
-          SERVICE_ACCOUNT_EMAIL: ${{ vars.SERVICE_ACCOUNT_EMAIL }}
-          DRY_RUN: ${{ vars.DRY_RUN }} 
-        run: |
-          python3 -c '
-          import os
-          content = ""
-          if os.path.exists("cloudrun/env.yaml"):
-              with open("cloudrun/env.yaml", "r") as f:
-                  content = f.read().rstrip() + "\n"
-
-          vars_to_append = [
-              "PROJECT_ID", "REGION", "TAG_PARENT", "REGISTRY_BUCKET",
-              "BIGQUERY_DATASET", "TASK_QUEUE", "SERVICE_ACCOUNT_EMAIL",
-              "DRY_RUN"
-          ]
-
-          for key in vars_to_append:
-              val = os.environ.get(key, "")
-              if val:
-                  content += f"{key}: \"{val}\"\n"
-
-          os.makedirs("cloudrun", exist_ok=True)
-          with open("cloudrun/env.yaml", "w") as f:
-              f.write(content)
-          '
-
+      # FIX: Natively inject variables into Cloud Run!
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
             --project=${{ vars.PROJECT_ID }} \
             --region=${{ vars.REGION }} \
             --image="${{ vars.REGION }}-docker.pkg.dev/${{ vars.PROJECT_ID }}/${{ vars.ARTIFACT_REPOSITORY }}/governance-engine:${{ github.sha }}" \
-            --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }}
+            --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
+            --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ vars.SERVICE_ACCOUNT_EMAIL }},DRY_RUN=${{ vars.DRY_RUN }}"
