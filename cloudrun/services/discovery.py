@@ -69,6 +69,12 @@ class DiscoveryService:
                 if "-compute@developer.gserviceaccount.com" in res_name_lower: is_default = True
                 elif "@appspot.gserviceaccount.com" in res_name_lower: is_default = True
 
+            # =================================================================
+            # 4. DATAPLEX SYSTEM GROUPS (Add this block)
+            # =================================================================
+            elif "dataplex.googleapis.com/entrygroup" in asset_type_lower:
+                if "/@" in res_name_lower: is_default = True
+
             if is_default:
                 logger.info("Skipping default Google-managed resource: %s", resource.name)
                 continue
