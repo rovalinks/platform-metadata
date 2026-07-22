@@ -26,6 +26,7 @@ CLOUD_RUN_URL = env_vars.get("CLOUD_RUN_URL") or os.getenv("CLOUD_RUN_URL", "PEN
 SERVICE_ACCOUNT_EMAIL = get_env_or_raise("SERVICE_ACCOUNT_EMAIL")
 REGISTRY_BUCKET = get_env_or_raise("REGISTRY_BUCKET")
 BIGQUERY_DATASET = env_vars.get("BIGQUERY_DATASET") or os.getenv("BIGQUERY_DATASET")
+REGISTRY_PREFIX = env_vars.get("REGISTRY_PREFIX") or os.getenv("REGISTRY_PREFIX", "applications")
 
 # Optional Configuration (With defaults)
 REGISTRY_CACHE_TTL = int(env_vars.get("REGISTRY_CACHE_TTL") or os.getenv("REGISTRY_CACHE_TTL", "60"))
