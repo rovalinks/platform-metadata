@@ -45,7 +45,7 @@ class Dispatcher:
         if route == "report":
             return report()
 
-        if route == "reports/projects":
+        if route == "projects_list":
             return get_projects()
 
         if route == "runs":
