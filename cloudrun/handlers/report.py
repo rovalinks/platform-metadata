@@ -3,7 +3,7 @@ from flask import jsonify, request
 from services.context import RequestContext
 from services.governance import GovernanceService
 from services.report import ReportService
-
+from utils.org_helper import get_all_active_projects
 
 def report():
     """
@@ -44,3 +44,14 @@ def report():
             for report in reports
         ]
     )
+
+def get_projects():
+    """
+    GET /reports/projects
+    Returns a list of all active projects in the Organization for the UI dropdown.
+    """
+    try:
+        projects = get_all_active_projects()
+        return jsonify({"projects": projects, "count": len(projects)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
