@@ -71,7 +71,15 @@ class ExecutorService:
                     desired=action["labels"],
                     allowed=list(action["labels"].keys())
                 )
-                client.apply_labels(resource, final_labels)
+                
+                # =========================================================
+                # GLOBAL DRY RUN INTERCEPTOR
+                # =========================================================
+                if config.DRY_RUN:
+                    logger.info("[DRY RUN] Would patch %s with labels: %s", action["resource"], final_labels)
+                else:
+                    client.apply_labels(resource, final_labels)
+                # =========================================================
                 
             elif self.capability.supports_tags(action["asset_type"]):
                 # --- TAGS TEMPORARILY DISABLED ---
