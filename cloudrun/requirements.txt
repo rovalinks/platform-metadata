@@ -33,3 +33,4 @@ google-cloud-alloydb>=0.3.0
 google-cloud-dns>=0.34.0
 google-cloud-secret-manager>=2.20.0
 google-cloud-api-keys>=0.3.0
+google-cloud-tasks>=2.13.0
