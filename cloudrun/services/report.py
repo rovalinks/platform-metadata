@@ -1,10 +1,10 @@
 from google.cloud import bigquery
-from config import config
 from utils.logger import logger
 from models.report import GovernanceReport
 from services.discovery import DiscoveryService
 from services.compliance import ComplianceService
 from services.enforcement import EnforcementService
+import config
 
 class ReportService:
 
