@@ -11,6 +11,7 @@ from services.discovery import DiscoveryService
 from services.executor import ExecutorService
 from services.governance import GovernanceService
 from repositories.execution_repository import ExecutionRepository
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 
 class GreenfieldService:
     """Handles real-time governance for newly created GCP resources."""
@@ -93,6 +94,15 @@ class GreenfieldService:
             
             # Loop through all resources (Instance + Child Disks)
             for resource in resources:
+
+                # ---> ADDING THIS GATEKEEPER <---
+                if resource.asset_type not in SUPPORTED_LABEL_RESOURCES and resource.asset_type not in SUPPORTED_TAG_RESOURCES:
+                    logger.info("Skipping Greenfield execution: %s is not in supported lists.", resource.asset_type)
+                    self._record_execution(audit_event, resource.asset_type, "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
+                    batch_results.append({"resource": resource.name, "status": "unsupported"})
+                    continue
+                # -----------------------------
+
                 resource_start = time.perf_counter()
                 resource.project = project_id
                 
