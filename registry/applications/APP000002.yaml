@@ -11,7 +11,7 @@ costCenter: C000002
 bindings:
 
   - cloud: gcp
-    projectId: 
+    projectId: payments-prod-1
     region: europe-west2
     environment: prod
     businessCriticality: high
