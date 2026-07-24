@@ -27,17 +27,24 @@ def brownfield_endpoint():
     project_id = request.args.get("project")
     
     if project_id:
-        # Single project scan context
+        # User specified a single project dropdown choice
         project_ids = [project_id]
     else:
-        # Org scan context: automatically fetch projects matching dev/prod suffix
+        # Organization scope selected: auto-discover all environment projects
+        from utils.org_helper import get_all_active_projects
         project_ids = get_all_active_projects()
-        
-    if not project_ids:
-        return jsonify({"status": "SKIPPED", "reason": "No active environment projects discovered"}), 200
 
-    # Pass the list cleanly to the brownfield engine orchestrator
-    return Dispatcher.dispatch("brownfield", project_ids=project_ids)
+    if not project_ids:
+        return {"status": "SKIPPED", "reason": "No environment active projects found"}, 200
+
+    # Explicitly invoke the service layer directly or pass via kwargs dictionary
+    # to bypass the Dispatcher positional arg validation issue:
+    from services.brownfield import BrownfieldService
+    service = BrownfieldService()
+    result = service.execute(project_ids=project_ids)
+    
+    from flask import jsonify
+    return jsonify(result)
 
 @app.get("/")
 def root():
