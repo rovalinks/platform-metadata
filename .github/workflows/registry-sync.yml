@@ -7,8 +7,6 @@ on:
     paths:
       - "registry/**"
       - ".github/workflows/registry-sync.yml"
-  release:
-    types: [published] # Triggers the PROD sync
 
 permissions:
   contents: read
@@ -16,13 +14,16 @@ permissions:
 
 jobs:
   # ==========================================
-  # JOB 1: SYNC TO DEV
+  # JOINT JOB: PARALLEL SYNC TO DEV AND PROD
   # ==========================================
-  sync-dev:
-    name: Sync Registry to Dev
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+  sync-environments:
+    name: Parallel Registry Sync
     runs-on: ubuntu-latest
-    environment: dev # Pulls DEV variables and WIF secrets
+    strategy:
+      matrix:
+        target_env: [dev, prod] # Tells GitHub to execute both tracks at once
+
+    environment: ${{ matrix.target_env }} # Dynamically grabs variables based on track
 
     steps:
       - name: Checkout Repository
@@ -39,41 +40,9 @@ jobs:
         with:
           skip_install: true
 
-      - name: Synchronise Registry
+      - name: Synchronise Registry Bucket
         run: |
-          echo "Synchronising registry to DEV bucket: ${{ vars.REGISTRY_BUCKET }}..."
-          gcloud storage rsync \
-            registry/applications \
-            gs://${{ vars.REGISTRY_BUCKET }}/applications \
-            --recursive \
-            --delete-unmatched-destination-objects \
-            --cache-control="no-cache"
-
-  # ==========================================
-  # JOB 2: SYNC TO PROD
-  # ==========================================
-  sync-prod:
-    name: Sync Registry to Prod
-    if: github.event_name == 'release' && github.event.action == 'published'
-    runs-on: ubuntu-latest
-    environment: prod # Pulls PROD variables and WIF secrets
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
-
-      - name: Setup Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
-
-      - name: Synchronise Registry
-        run: |
-          echo "Synchronising registry to PROD bucket: ${{ vars.REGISTRY_BUCKET }}..."
+          echo "Synchronising registry to ${{ upper(matrix.target_env) }} bucket: ${{ vars.REGISTRY_BUCKET }}..."
           gcloud storage rsync \
             registry/applications \
             gs://${{ vars.REGISTRY_BUCKET }}/applications \
