@@ -14,16 +14,16 @@ permissions:
 
 jobs:
   # ==========================================
-  # JOINT JOB: PARALLEL SYNC TO DEV AND PROD
+  # PARALLEL MATRIX SYNC TO BOTH ENVIRONMENTS
   # ==========================================
-  sync-environments:
-    name: Parallel Registry Sync
+  sync-registry:
+    name: Sync Registry to ${{ matrix.environment }}
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        target_env: [dev, prod] # Tells GitHub to execute both tracks at once
+        environment: [dev, prod] # Runs both jobs side-by-side in parallel
 
-    environment: ${{ matrix.target_env }} # Dynamically grabs variables based on track
+    environment: ${{ matrix.environment }} # Dynamically loads dev or prod environment contexts
 
     steps:
       - name: Checkout Repository
@@ -42,7 +42,7 @@ jobs:
 
       - name: Synchronise Registry Bucket
         run: |
-          echo "Synchronising registry to ${{ upper(matrix.target_env) }} bucket: ${{ vars.REGISTRY_BUCKET }}..."
+          echo "Synchronising registry assets to ${{ matrix.environment.toUpperCase() }} bucket: ${{ vars.REGISTRY_BUCKET }}..."
           gcloud storage rsync \
             registry/applications \
             gs://${{ vars.REGISTRY_BUCKET }}/applications \
