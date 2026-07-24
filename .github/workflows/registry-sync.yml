@@ -42,7 +42,10 @@ jobs:
 
       - name: Synchronise Registry Bucket
         run: |
-          echo "Synchronising registry assets to ${{ matrix.environment.toUpperCase() }} bucket: ${{ vars.REGISTRY_BUCKET }}..."
+          # Safe Bash-native capitalization logic used here instead of broken JS expression
+          ENV_NAME=$(echo "${{ matrix.environment }}" | tr '[:lower:]' '[:upper:]')
+          echo "Synchronising registry assets to ${ENV_NAME} bucket: ${{ vars.REGISTRY_BUCKET }}..."
+          
           gcloud storage rsync \
             registry/applications \
             gs://${{ vars.REGISTRY_BUCKET }}/applications \
