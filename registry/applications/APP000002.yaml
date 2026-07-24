@@ -1,0 +1,17 @@
+schemaVersion: v1
+
+product: prod-cpe-tagging
+team: cloud
+owner: gowner
+budgetOwner: bowner
+organization: rova
+department: prod-engg
+costCenter: C000002
+
+bindings:
+
+  - cloud: gcp
+    projectId: 
+    region: europe-west2
+    environment: prod
+    businessCriticality: high
