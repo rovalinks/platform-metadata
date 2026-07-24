@@ -1,4 +1,5 @@
-from flask import (Flask,request,render_template)
+import os
+from flask import Flask, request, render_template, jsonify
 
 from dispatcher import Dispatcher
 from routes.pubsub import handle as pubsub_handler
@@ -6,6 +7,9 @@ from utils.org_helper import get_all_active_projects
 
 app = Flask(__name__)
 
+# =====================================================
+# UI & Webhook Endpoints
+# =====================================================
 
 @app.get("/")
 def dashboard_ui():
@@ -13,10 +17,7 @@ def dashboard_ui():
 
 @app.post("/")
 def greenfield_endpoint():
-    return Dispatcher.dispatch(
-        "greenfield",
-        request.get_json(),
-    )
+    return Dispatcher.dispatch("greenfield", request.get_json())
 
 @app.post("/events/pubsub")
 def pubsub_endpoint():
@@ -27,83 +28,62 @@ def brownfield_endpoint():
     project_id = request.args.get("project")
     
     if project_id:
-        # User specified a single project dropdown choice
         project_ids = [project_id]
     else:
-        # Organization scope selected: auto-discover all environment projects
-        from utils.org_helper import get_all_active_projects
         project_ids = get_all_active_projects()
-
+        
     if not project_ids:
-        return {"status": "SKIPPED", "reason": "No environment active projects found"}, 200
+        return jsonify({"status": "SKIPPED", "reason": "No environment active projects found"}), 200
 
-    # Explicitly invoke the service layer directly or pass via kwargs dictionary
-    # to bypass the Dispatcher positional arg validation issue:
     from services.brownfield import BrownfieldService
     service = BrownfieldService()
     result = service.execute(project_ids=project_ids)
     
-    from flask import jsonify
     return jsonify(result)
 
-@app.get("/")
-def root():
-    return Dispatcher.dispatch("health")
+@app.post("/worker")
+def worker_endpoint():
+    return Dispatcher.dispatch("worker")
 
+# =====================================================
+# Core Engine Dispatchers
+# =====================================================
 
 @app.get("/health")
 def health():
     return Dispatcher.dispatch("health")
 
-
 @app.get("/discover")
 def discover():
     return Dispatcher.dispatch("discover")
-
 
 @app.get("/compliance")
 def compliance_endpoint():
     return Dispatcher.dispatch("compliance")
 
-
 @app.get("/plan")
 def plan_endpoint():
     return Dispatcher.dispatch("plan")
-
 
 @app.get("/execute")
 def execute_endpoint():
     return Dispatcher.dispatch("execute")
 
-@app.route(
-    "/runs/<run_id>",
-    methods=["GET"],
-)
-def run_status_endpoint(run_id):
-
-    return Dispatcher.dispatch(
-        "run_status",
-        run_id=run_id,
-    )
-
 @app.get("/enforce")
 def enforce_endpoint():
     return Dispatcher.dispatch("enforce")
-
 
 @app.get("/verify")
 def verify_endpoint():
     return Dispatcher.dispatch("verify")
 
+# =====================================================
+# Reporting & Dashboard Data APIs
+# =====================================================
 
 @app.get("/report")
 def report_endpoint():
     return Dispatcher.dispatch("report")
-
-
-#
-# Reporting APIs
-#
 
 @app.get("/reports/dashboard")
 def dashboard_endpoint():
@@ -117,22 +97,17 @@ def compliance_report_endpoint():
 def runs_endpoint():
     return Dispatcher.dispatch("runs")
 
+@app.route("/runs/<run_id>", methods=["GET"])
+def run_status_endpoint(run_id):
+    return Dispatcher.dispatch("run_status", run_id=run_id)
 
 @app.get("/reports/run/<run_id>")
 def run_endpoint(run_id):
-    return Dispatcher.dispatch(
-        "run",
-        run_id=run_id,
-    )
-
-@app.post("/worker")
-def worker_endpoint():
-    return Dispatcher.dispatch("worker")
+    return Dispatcher.dispatch("run", run_id=run_id)
 
 @app.get("/reports/history")
 def history_endpoint():
     return Dispatcher.dispatch("history")
-
 
 @app.get("/reports/metrics")
 def metrics_endpoint():
@@ -140,15 +115,11 @@ def metrics_endpoint():
 
 @app.get("/reports/resources")
 def resources_endpoint():
-    return Dispatcher.dispatch(
-        "resources"
-    )
+    return Dispatcher.dispatch("resources")
 
 @app.get("/reports/non-compliant")
 def non_compliant_endpoint():
-    return Dispatcher.dispatch(
-        "non_compliant"
-    )
+    return Dispatcher.dispatch("non_compliant")
 
 @app.route('/projects_list', methods=['GET'])
 def projects_list_endpoint():
