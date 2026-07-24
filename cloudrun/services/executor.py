@@ -50,61 +50,73 @@ class ExecutorService:
         )[0]
 
     def _execute_single_action(self, action):
-        client = self.adapters.client_for(action["asset_type"])
-        if client is None:
-            return {"resource": action["resource"], "status": "unsupported"}
+        asset_type = action["asset_type"]
+        resource_name = action["resource"]
         
-        logger.info("Applying remediation to %s using %s", action["resource"], client.__class__.__name__)
+        # =========================================================
+        # 1. EARLY VALIDATION (Before ANY network calls)
+        # =========================================================
+        client = self.adapters.client_for(asset_type)
+        if client is None:
+            logger.info("Unsupported asset type %s. Bypassing.", asset_type)
+            return {"resource": resource_name, "status": "unsupported"}
+            
+        supports_labels = self.capability.supports_labels(asset_type)
+        supports_tags = self.capability.supports_tags(asset_type)
+        
+        if not supports_labels and not supports_tags:
+            logger.info("Resource %s does not support labels or tags. Bypassing.", resource_name)
+            return {"resource": resource_name, "status": "bypassed"}
+
+        # =========================================================
+        # 2. NETWORK EXECUTION (Only if validation passes)
+        # =========================================================
+        logger.info("Applying remediation to %s using %s", resource_name, client.__class__.__name__)
         
         try:
-            resource = client.get(action["resource"])
+            # NOW we fetch the resource, saving GCP API calls/errors
+            resource = client.get(resource_name)
             
-            # --- NULL CHECK ---
             if resource is None:
-                logger.info("Resource %s is tag-only or unsupported for labels. Bypassing.", action["resource"])
-                return {"resource": action["resource"], "status": "bypassed"}
-            # ---------------------------
+                logger.info("Resource %s returned None. Bypassing.", resource_name)
+                return {"resource": resource_name, "status": "bypassed"}
 
-            if self.capability.supports_labels(action["asset_type"]):
+            # =========================================================
+            # 3. APPLY RULES
+            # =========================================================
+            if supports_labels:
                 final_labels = self.ownership.build(
                     existing=resource.labels,
                     desired=action["labels"],
                     allowed=list(action["labels"].keys())
                 )
 
-                # --- EXCLUDE LABELS AT THE PROJECT LEVEL ---
-                if action["asset_type"] == "cloudresourcemanager.googleapis.com/Project":
-                    # Strip out resource-specific labels from the global project
+                # Strip out resource-specific labels from the global project
+                if asset_type == "cloudresourcemanager.googleapis.com/Project":
                     for key in ["product", "zone", "region", "application"]:
                         final_labels.pop(key, None)
-                # ---------------------------------------------------------
                 
-                # =========================================================
                 # GLOBAL DRY RUN INTERCEPTOR
-                # =========================================================
                 if config.DRY_RUN:
-                    logger.info("[DRY RUN] Would patch %s with labels: %s", action["resource"], final_labels)
+                    logger.info("[DRY RUN] Would patch %s with labels: %s", resource_name, final_labels)
                 else:
                     client.apply_labels(resource, final_labels)
-                # =========================================================
                 
-            elif self.capability.supports_tags(action["asset_type"]):
-                # --- TAGS TEMPORARILY DISABLED ---
-                logger.info("Resource %s is Tag-only. Tags are currently disabled by configuration. Bypassing.", action["resource"])
-                return {"resource": action["resource"], "status": "bypassed"}
-                # ---------------------------------
+            elif supports_tags:
+                logger.info("Resource %s is Tag-only. Tags are disabled by config. Bypassing.", resource_name)
+                return {"resource": resource_name, "status": "bypassed"}
             
-            logger.info("Successfully updated %s", action["resource"])
-            return {"resource": action["resource"], "status": "updated"}
+            logger.info("Successfully updated %s", resource_name)
+            return {"resource": resource_name, "status": "updated"}
             
         except NotFound:
             # CLEANLY CATCH 404s FOR DELETED RESOURCES
-            logger.warning("Resource %s not found (likely deleted). Bypassing.", action["resource"])
-            return {"resource": action["resource"], "status": "bypassed"}
+            logger.warning("Resource %s not found (likely deleted). Bypassing.", resource_name)
+            return {"resource": resource_name, "status": "bypassed"}
             
         except Exception as error:
-            logger.exception("Failed updating %s", action["resource"])
-            return {"resource": action["resource"], "status": "failed", "error": format_gcp_exception(error)}
+            logger.exception("Failed updating %s", resource_name)
+            return {"resource": resource_name, "status": "failed", "error": format_gcp_exception(error)}
 
     def execute_batch(self, run_id: str, offset: int, batch_size: int):
         plans = self.repository.get_planned_batch(run_id=run_id, offset=offset, batch_size=batch_size)
