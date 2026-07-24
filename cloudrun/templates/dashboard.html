@@ -117,28 +117,45 @@
 
 <!-- JavaScript for Project Initialization & Brownfield Trigger -->
 <script>
+document.getElementById('scope').addEventListener('change', function() {
+    const projectSelect = document.getElementById('project');
+    if (this.value === 'organization') {
+        projectSelect.value = '';
+        projectSelect.disabled = true;
+    } else {
+        projectSelect.disabled = false;
+    }
+});
+
+// Trigger change event on page load to ensure layout integrity
+document.getElementById('scope').dispatchEvent(new Event('change'));
 
 async function triggerBrownfield() {
+    const scope = document.getElementById('scope').value;
     const projectSelect = document.getElementById('project');
-    const projectId = projectSelect ? projectSelect.value : 'payments-dev-1';
+    const btn = document.getElementById('run-brownfield-btn');
     
-    if (!projectId) {
-        alert("Please select a project first.");
-        return;
+    let url = '/brownfield';
+    let targetDisplay = 'the entire Organization';
+    
+    if (scope === 'project') {
+        const projectId = projectSelect.value;
+        if (!projectId) {
+            alert("Please select a specific project first.");
+            return;
+        }
+        url += `?project=${projectId}`;
+        targetDisplay = projectId;
     }
     
-    const btn = document.getElementById('run-brownfield-btn');
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Queuing...';
 
     try {
-        const response = await fetch(`/brownfield?project=${projectId}`, {
-            method: 'GET'
-        });
-        
+        const response = await fetch(url, { method: 'GET' });
         if (response.ok) {
-            alert(`✅ Brownfield scan initiated for ${projectId}!`);
+            alert(`✅ Brownfield scan initiated for ${targetDisplay}!`);
             setTimeout(() => window.location.reload(), 1500); 
         } else {
             alert(`❌ Failed to start scan. HTTP Status: ${response.status}`);

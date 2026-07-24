@@ -2,6 +2,7 @@ from flask import (Flask,request,render_template)
 
 from dispatcher import Dispatcher
 from routes.pubsub import handle as pubsub_handler
+from utils.org_helper import get_all_active_projects
 
 app = Flask(__name__)
 
@@ -23,7 +24,20 @@ def pubsub_endpoint():
 
 @app.get("/brownfield")
 def brownfield_endpoint():
-    return Dispatcher.dispatch("brownfield")
+    project_id = request.args.get("project")
+    
+    if project_id:
+        # Single project scan context
+        project_ids = [project_id]
+    else:
+        # Org scan context: automatically fetch projects matching dev/prod suffix
+        project_ids = get_all_active_projects()
+        
+    if not project_ids:
+        return jsonify({"status": "SKIPPED", "reason": "No active environment projects discovered"}), 200
+
+    # Pass the list cleanly to the brownfield engine orchestrator
+    return Dispatcher.dispatch("brownfield", project_ids=project_ids)
 
 @app.get("/")
 def root():
