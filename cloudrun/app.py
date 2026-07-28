@@ -1,4 +1,5 @@
 import os
+import logging
 from flask import Flask, request, render_template, jsonify
 
 from dispatcher import Dispatcher
@@ -54,24 +55,8 @@ def health():
     return Dispatcher.dispatch("health")
 
 @app.get("/discover")
-def discover():
+def discover_endpoint():
     return Dispatcher.dispatch("discover")
-
-@app.get("/compliance")
-def compliance_endpoint():
-    return Dispatcher.dispatch("compliance")
-
-@app.get("/plan")
-def plan_endpoint():
-    return Dispatcher.dispatch("plan")
-
-@app.get("/execute")
-def execute_endpoint():
-    return Dispatcher.dispatch("execute")
-
-@app.get("/enforce")
-def enforce_endpoint():
-    return Dispatcher.dispatch("enforce")
 
 @app.get("/verify")
 def verify_endpoint():
@@ -124,10 +109,18 @@ def non_compliant_endpoint():
 @app.route('/projects_list', methods=['GET'])
 def projects_list_endpoint():
     return Dispatcher.dispatch("projects_list")
-    
+
+# =====================================================
+# Security & Error Handling (CodeQL Compliant)
+# =====================================================
+
+@app.errorhandler(Exception)
+def handle_global_error(error):
+    """Catches all unhandled exceptions and prevents stack trace exposure."""
+    logging.exception("An unhandled exception occurred during a request.")
+    return jsonify({"error": "An internal server error occurred. Please check server logs."}), 500
+
 if __name__ == "__main__":
-    app.run(
-        host="0.0.0.0",  # nosec B104
-        port=8080,
-        debug=False
-    )
+    port = int(os.environ.get("PORT", 8080))
+    # debug=False strictly enforced to prevent CWE-209 Stack Trace Exposure
+    app.run(host="0.0.0.0", port=port, debug=False)
