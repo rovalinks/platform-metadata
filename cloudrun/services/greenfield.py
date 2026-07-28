@@ -87,7 +87,8 @@ class GreenfieldService:
             resources = self.classification.classify(audit_event)
             
             if not resources:
-                self._record_execution(audit_event, "UNKNOWN", "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
+                # DO NOT save unsupported resources to the database to prevent bloat
+                # self._record_execution(audit_event, "UNKNOWN", "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
                 return {"status": "unsupported"}
 
             batch_results = []
@@ -98,7 +99,8 @@ class GreenfieldService:
                 # ---> ADDING THIS GATEKEEPER <---
                 if resource.asset_type not in SUPPORTED_LABEL_RESOURCES and resource.asset_type not in SUPPORTED_TAG_RESOURCES:
                     logger.info("Skipping Greenfield execution: %s is not in supported lists.", resource.asset_type)
-                    self._record_execution(audit_event, resource.asset_type, "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
+                    # DO NOT save unsupported resources to the database to prevent bloat
+                    # self._record_execution(audit_event, resource.asset_type, "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
                     batch_results.append({"resource": resource.name, "status": "unsupported"})
                     continue
                 # -----------------------------
