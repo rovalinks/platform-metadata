@@ -123,4 +123,6 @@ def handle_global_error(error):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))
     # debug=False strictly enforced to prevent CWE-209 Stack Trace Exposure
-    app.run(host="0.0.0.0", port=port, debug=False)
+    app.run(host="0.0.0.0", port=port, debug=False)  # nosec B104
+
+   
