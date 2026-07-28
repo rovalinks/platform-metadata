@@ -17,7 +17,7 @@ class PubSubClient:
 
     def _parse_resource_name(self, resource_url: str):
         # Handle CAI format: //pubsub.googleapis.com/projects/PROJECT/topics/TOPIC
-        parts = resource_url.replace("//pubsub.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//pubsub.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         
         if "topics" in parts:

@@ -14,7 +14,7 @@ class ResourceManagerClient:
         return asset_type in supported_types and asset_type.startswith("cloudresourcemanager.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        parts = resource_url.replace("//cloudresourcemanager.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//cloudresourcemanager.googleapis.com/", "").split("/")
         project_id = parts[-1]
         return f"projects/{project_id}" if not project_id.startswith("projects/") else project_id
 

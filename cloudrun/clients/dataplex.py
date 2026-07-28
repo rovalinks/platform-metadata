@@ -17,7 +17,7 @@ class DataplexClient:
         return asset_type in supported_types and asset_type.startswith("dataplex.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        parts = resource_url.replace("//dataplex.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//dataplex.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         location = parts[parts.index("locations") + 1]
         res_id = parts[-1]

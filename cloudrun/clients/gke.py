@@ -15,7 +15,7 @@ class GKEClient:
 
     def _parse_resource_name(self, resource_url: str):
         # Format: //container.googleapis.com/projects/P/locations/L/clusters/C
-        parts = resource_url.replace("//container.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//container.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         
         if "locations" in parts:

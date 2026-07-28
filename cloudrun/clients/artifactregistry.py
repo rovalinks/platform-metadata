@@ -15,7 +15,7 @@ class ArtifactRegistryClient:
 
     def _parse_resource_name(self, resource_url: str):
         # CAI format: //artifactregistry.googleapis.com/projects/P/locations/L/repositories/R
-        parts = resource_url.replace("//artifactregistry.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//artifactregistry.googleapis.com/", "").split("/")
         
         # SAFELY BYPASS IF THIS IS JUST A LOCATION, NOT A REPOSITORY
         if "repositories" not in parts:

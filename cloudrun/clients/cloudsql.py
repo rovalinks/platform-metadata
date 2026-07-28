@@ -25,7 +25,7 @@ class CloudSQLClient:
         return asset_type in supported_types and asset_type.startswith("sqladmin.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        parts = resource_url.replace("//sqladmin.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//sqladmin.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         instance = parts[parts.index("instances") + 1]
         return project, instance

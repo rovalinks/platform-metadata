@@ -14,7 +14,7 @@ class DataformClient:
         return asset_type in supported_types and asset_type.startswith("dataform.googleapis.com/")
 
     def get(self, resource_name: str, **kwargs):
-        repo_name = resource_name.replace("//dataform.googleapis.com/", "")
+        repo_name = resource_name.removeprefix("//dataform.googleapis.com/", "")
         try:
             repo = self.client.get_repository(name=repo_name)
             return SimpleNamespace(name=resource_name, labels=dict(repo.labels) or {}, tags={})
@@ -26,7 +26,7 @@ class DataformClient:
         resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         if self.dry_run: return True
 
-        repo_name = resource_name.replace("//dataform.googleapis.com/", "")
+        repo_name = resource_name.removeprefix("//dataform.googleapis.com/", "")
         try:
             repo = dataform_v1beta1.Repository(name=repo_name, labels=labels)
             self.client.update_repository(repository=repo, update_mask={"paths": ["labels"]})

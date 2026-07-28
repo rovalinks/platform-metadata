@@ -15,7 +15,7 @@ class RedisClient:
 
     def _parse_resource_name(self, resource_url: str):
         # CAI format: //redis.googleapis.com/projects/P/locations/L/instances/I
-        parts = resource_url.replace("//redis.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//redis.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         location = parts[parts.index("locations") + 1]
         instance = parts[parts.index("instances") + 1]

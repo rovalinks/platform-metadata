@@ -20,7 +20,7 @@ class DNSClient:
         return {"Authorization": f"Bearer {self.credentials.token}", "Content-Type": "application/json"}
 
     def _get_url(self, resource_name: str):
-        parts = resource_name.replace("//dns.googleapis.com/", "").split("/")
+        parts = resource_name.removeprefix("//dns.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         zone = parts[parts.index("managedZones") + 1]
         return f"https://dns.googleapis.com/dns/v1/projects/{project}/managedZones/{zone}"

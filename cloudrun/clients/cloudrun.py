@@ -14,7 +14,7 @@ class CloudRunClient:
         return asset_type in supported_types and asset_type.startswith("run.googleapis.com/")
 
     def _parse_resource_name(self, resource_url: str):
-        parts = resource_url.replace("//run.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//run.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         location = parts[parts.index("locations") + 1]
         service = parts[parts.index("services") + 1]

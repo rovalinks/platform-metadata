@@ -15,7 +15,7 @@ class CloudFunctionsClient:
 
     def _parse_resource_name(self, resource_url: str):
         # CAI format: //cloudfunctions.googleapis.com/projects/P/locations/L/functions/F
-        parts = resource_url.replace("//cloudfunctions.googleapis.com/", "").split("/")
+        parts = resource_url.removeprefix("//cloudfunctions.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         location = parts[parts.index("locations") + 1]
         function = parts[parts.index("functions") + 1]

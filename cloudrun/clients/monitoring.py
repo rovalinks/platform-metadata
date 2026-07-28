@@ -14,7 +14,7 @@ class MonitoringClient:
         return asset_type in supported_types and asset_type.startswith("monitoring.googleapis.com/")
 
     def get(self, resource_name: str, **kwargs):
-        pol_name = resource_name.replace("//monitoring.googleapis.com/", "")
+        pol_name = resource_name.removeprefix("//monitoring.googleapis.com/", "")
         try:
             policy = self.client.get_alert_policy(name=pol_name)
             return SimpleNamespace(name=resource_name, labels=dict(policy.user_labels) or {}, tags={})
@@ -26,7 +26,7 @@ class MonitoringClient:
         resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         if self.dry_run: return True
 
-        pol_name = resource_name.replace("//monitoring.googleapis.com/", "")
+        pol_name = resource_name.removeprefix("//monitoring.googleapis.com/", "")
         try:
             policy = monitoring_v3.AlertPolicy(name=pol_name, user_labels=labels)
             self.client.update_alert_policy(alert_policy=policy, update_mask={"paths": ["user_labels"]})

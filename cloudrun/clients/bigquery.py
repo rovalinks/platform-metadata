@@ -16,7 +16,7 @@ class BigQueryClient(ResourceClient):
 
     def _parse_resource_name(self, resource_name: str):
         # Format: //bigquery.googleapis.com/projects/P/datasets/D/tables/T
-        parts = resource_name.replace("//bigquery.googleapis.com/", "").split("/")
+        parts = resource_name.removeprefix("//bigquery.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         dataset = parts[parts.index("datasets") + 1]
         return project, dataset
@@ -94,7 +94,7 @@ class BigQueryClient(ResourceClient):
 #         return asset_type in supported_types and asset_type.startswith("bigquery.googleapis.com/")
 
 #     def _parse_resource_name(self, resource_url: str):
-#         parts = resource_url.replace("//bigquery.googleapis.com/", "").split("/")
+#         parts = resource_url.removeprefix("//bigquery.googleapis.com/", "").split("/")
 #         project = parts[parts.index("projects") + 1] if "projects" in parts else None
 #         dataset = parts[parts.index("datasets") + 1] if "datasets" in parts else None
 #         table = parts[parts.index("tables") + 1] if "tables" in parts else None

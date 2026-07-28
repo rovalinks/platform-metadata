@@ -14,7 +14,7 @@ class AlloyDBClient:
         return asset_type in supported_types and asset_type.startswith("alloydb.googleapis.com/")
 
     def get(self, resource_name: str, **kwargs):
-        res_path = resource_name.replace("//alloydb.googleapis.com/", "")
+        res_path = resource_name.removeprefix("//alloydb.googleapis.com/", "")
         try:
             if "/instances/" in res_path:
                 inst = self.client.get_instance(name=res_path)
@@ -30,7 +30,7 @@ class AlloyDBClient:
         resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         if self.dry_run: return True
 
-        res_path = resource_name.replace("//alloydb.googleapis.com/", "")
+        res_path = resource_name.removeprefix("//alloydb.googleapis.com/", "")
         try:
             if "/instances/" in res_path:
                 inst = alloydb_v1.Instance(name=res_path, labels=labels)
