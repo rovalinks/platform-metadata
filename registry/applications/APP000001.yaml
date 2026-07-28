@@ -3,7 +3,7 @@ schemaVersion: v1
 product: poc
 team: poc_team
 owner: joe
-budgetOwner: dusting
+budgetOwner: dustin
 organization: rouse
 department: engineering
 costCenter: C0000001
