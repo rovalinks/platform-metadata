@@ -5,6 +5,7 @@ from flask import Flask, request, render_template, jsonify
 from dispatcher import Dispatcher
 from routes.pubsub import handle as pubsub_handler
 from utils.org_helper import get_all_active_projects
+from werkzeug.exceptions import HTTPException
 
 app = Flask(__name__)
 
@@ -117,6 +118,12 @@ def projects_list_endpoint():
 @app.errorhandler(Exception)
 def handle_global_error(error):
     """Catches all unhandled exceptions and prevents stack trace exposure."""
+    
+    # Let standard HTTP routing errors (like 404s for favicon) pass through normally
+    if isinstance(error, HTTPException):
+        return error
+        
+    # Mask real 500 server crashes to satisfy CodeQL
     logging.exception("An unhandled exception occurred during a request.")
     return jsonify({"error": "An internal server error occurred. Please check server logs."}), 500
 
