@@ -12,7 +12,7 @@ class ComputeExtractor(BaseExtractor):
         
         # Clean the raw name
         raw_name = audit_event.get("resource_name", "")
-        parent_name = raw_name.removeprefix("//compute.googleapis.com/", "")
+        parent_name = raw_name.replace("//compute.googleapis.com/", "")
             
         # Extract Instance AND its Implicit Disks
         if "instances.insert" in method:
