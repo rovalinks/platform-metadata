@@ -12,12 +12,12 @@ class AppEngineClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("appengine.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "appengine.googleapis.com"
 
     def get(self, resource_name: str, **kwargs):
         try:
             if "/versions/" in resource_name:
-                parts = resource_name.removeprefix("//appengine.googleapis.com/", "").split("/")
+                parts = resource_name.replace("//appengine.googleapis.com/", "").split("/")
                 app_id = parts[parts.index("apps") + 1]
                 service_id = parts[parts.index("services") + 1]
                 version_id = parts[parts.index("versions") + 1]
@@ -26,7 +26,7 @@ class AppEngineClient:
                 version = self.versions_client.get_version(request=req)
                 return SimpleNamespace(name=resource_name, labels=dict(version.labels) if version.labels else {}, tags={})
             else:
-                app_id = resource_name.removeprefix("//appengine.googleapis.com/apps/", "")
+                app_id = resource_name.replace("//appengine.googleapis.com/apps/", "")
                 app = self.client.get_application(name=f"apps/{app_id}")
                 return SimpleNamespace(name=resource_name, labels=dict(app.labels) if app.labels else {}, tags={})
         except Exception as e:
@@ -37,7 +37,7 @@ class AppEngineClient:
         resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         try:
             if "/versions/" in resource_name:
-                parts = resource_name.removeprefix("//appengine.googleapis.com/", "").split("/")
+                parts = resource_name.replace("//appengine.googleapis.com/", "").split("/")
                 app_id = parts[parts.index("apps") + 1]
                 service_id = parts[parts.index("services") + 1]
                 version_id = parts[parts.index("versions") + 1]
@@ -47,7 +47,7 @@ class AppEngineClient:
                 req = appengine_admin_v1.UpdateVersionRequest(name=v_name, version=version, update_mask={"paths": ["labels"]})
                 self.versions_client.update_version(request=req)
             else:
-                app_id = resource_name.removeprefix("//appengine.googleapis.com/apps/", "")
+                app_id = resource_name.replace("//appengine.googleapis.com/apps/", "")
                 app = appengine_admin_v1.Application(name=f"apps/{app_id}", labels=labels)
                 req = appengine_admin_v1.UpdateApplicationRequest(name=app.name, application=app, update_mask={"paths": ["labels"]})
                 self.client.update_application(request=req)
@@ -72,11 +72,11 @@ class AppEngineClient:
 
 #     def supports(self, asset_type: str) -> bool:
 #         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-#         return asset_type in supported_types and asset_type.startswith("appengine.googleapis.com/")
+#         return asset_type in supported_types and asset_type.split("/")[0] == "appengine.googleapis.com"
 
 #     def _parse_resource_name(self, resource_url: str):
 #         # CAI format: //appengine.googleapis.com/apps/APP_ID (usually the project ID)
-#         parts = resource_url.removeprefix("//appengine.googleapis.com/", "").split("/")
+#         parts = resource_url.split("//")[-1].split("/")[1:]
 #         app_id = parts[parts.index("apps") + 1]
 #         return f"apps/{app_id}" if not app_id.startswith("apps/") else app_id
 

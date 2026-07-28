@@ -13,14 +13,14 @@ class DNSClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("dns.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "dns.googleapis.com"
 
     def _get_headers(self):
         if not self.credentials.valid: self.credentials.refresh(Request())
         return {"Authorization": f"Bearer {self.credentials.token}", "Content-Type": "application/json"}
 
     def _get_url(self, resource_name: str):
-        parts = resource_name.removeprefix("//dns.googleapis.com/", "").split("/")
+        parts = resource_name.replace("//dns.googleapis.com/", "").split("/")
         project = parts[parts.index("projects") + 1]
         zone = parts[parts.index("managedZones") + 1]
         return f"https://dns.googleapis.com/dns/v1/projects/{project}/managedZones/{zone}"

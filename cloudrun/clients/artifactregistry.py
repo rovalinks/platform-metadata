@@ -11,11 +11,11 @@ class ArtifactRegistryClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("artifactregistry.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "artifactregistry.googleapis.com"
 
     def _parse_resource_name(self, resource_url: str):
         # CAI format: //artifactregistry.googleapis.com/projects/P/locations/L/repositories/R
-        parts = resource_url.removeprefix("//artifactregistry.googleapis.com/", "").split("/")
+        parts = resource_url.split("//")[-1].split("/")[1:]
         
         # SAFELY BYPASS IF THIS IS JUST A LOCATION, NOT A REPOSITORY
         if "repositories" not in parts:

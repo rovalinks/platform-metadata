@@ -11,7 +11,7 @@ class StorageClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("storage.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "storage.googleapis.com"
 
     def _parse_bucket_name(self, resource_url: str) -> str:
         return resource_url.split("/")[-1]

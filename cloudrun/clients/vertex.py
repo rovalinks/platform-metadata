@@ -12,10 +12,10 @@ class VertexClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("aiplatform.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "aiplatform.googleapis.com"
 
     def _parse_resource_name(self, resource_url: str):
-        parts = resource_url.removeprefix("//aiplatform.googleapis.com/", "").split("/")
+        parts = resource_url.split("//")[-1].split("/")[1:]
         project = parts[parts.index("projects") + 1]
         location = parts[parts.index("locations") + 1]
         res_id = parts[-1]

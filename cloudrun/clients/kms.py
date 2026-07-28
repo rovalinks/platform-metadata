@@ -11,11 +11,11 @@ class KMSClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("cloudkms.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "cloudkms.googleapis.com"
 
     def _parse_resource_name(self, resource_url: str):
         # Format: //cloudkms.googleapis.com/projects/P/locations/L/keyRings/R/cryptoKeys/K
-        return resource_url.removeprefix("//cloudkms.googleapis.com/", "")
+        return resource_url.replace("//cloudkms.googleapis.com/", "")
 
     def get(self, resource_name: str, **kwargs):
         key_name = self._parse_resource_name(resource_name)

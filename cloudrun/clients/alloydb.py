@@ -11,10 +11,10 @@ class AlloyDBClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and asset_type.startswith("alloydb.googleapis.com/")
+        return asset_type in supported_types and asset_type.split("/")[0] == "alloydb.googleapis.com"
 
     def get(self, resource_name: str, **kwargs):
-        res_path = resource_name.removeprefix("//alloydb.googleapis.com/", "")
+        res_path = resource_name.replace("//alloydb.googleapis.com/", "")
         try:
             if "/instances/" in res_path:
                 inst = self.client.get_instance(name=res_path)
@@ -30,7 +30,7 @@ class AlloyDBClient:
         resource_name = getattr(resource, "name", resource) if not isinstance(resource, str) else resource
         if self.dry_run: return True
 
-        res_path = resource_name.removeprefix("//alloydb.googleapis.com/", "")
+        res_path = resource_name.replace("//alloydb.googleapis.com/", "")
         try:
             if "/instances/" in res_path:
                 inst = alloydb_v1.Instance(name=res_path, labels=labels)
