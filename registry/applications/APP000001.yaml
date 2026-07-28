@@ -1,17 +1,17 @@
 schemaVersion: v1
 
-product: cpe-tagging-validation
-team: cloud
-owner: xxxxxx
-budgetOwner: yyyyyy
-organization: regggs
+product: poc
+team: poc_team
+owner: joe
+budgetOwner: dusting
+organization: rouse
 department: engineering
-costCenter: C0000034
+costCenter: C0000001
 
 bindings:
 
   - cloud: gcp
-    projectId: payments-dev-1
-    region: europe-west2
+    projectId: rs-tagging-poc
+    region: us-central1
     environment: dev
     businessCriticality: low
