@@ -19,9 +19,7 @@ class ProjectClient(ResourceClient):
         self,
         resource_name: str,
     ) -> str:
-        if resource_name.startswith(
-            "//cloudresourcemanager.googleapis.com/"
-        ):
+        if resource_name.split("//")[-1].split("/")[0] == "cloudresourcemanager.googleapis.com":
             return resource_name.replace(
                 "//cloudresourcemanager.googleapis.com/",
                 "",

@@ -46,7 +46,7 @@ def execute():
             return (
                 jsonify(
                     {
-                        "error": message
+                        "error": "A processing error occurred. Please check logs."
                     }
                 ),
                 409,
@@ -57,7 +57,7 @@ def execute():
             return (
                 jsonify(
                     {
-                        "error": message
+                        "error": "A processing error occurred. Please check logs."
                     }
                 ),
                 404,
@@ -66,7 +66,7 @@ def execute():
         return (
             jsonify(
                 {
-                    "error": message
+                    "error": "A processing error occurred. Please check logs."
                 }
             ),
             500,

@@ -4,8 +4,8 @@ logger = logging.getLogger(__name__)
 
 
 def _normalize(resource_name: str) -> str:
-    if resource_name.startswith("//compute.googleapis.com/"):
-        return resource_name[len("//compute.googleapis.com/"):]
+    if resource_name.split("//")[-1].split("/")[0] == "compute.googleapis.com":
+        return resource_name.split("//")[-1].split("/", 1)[-1]
     return resource_name
 
 

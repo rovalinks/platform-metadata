@@ -6,7 +6,7 @@ def parse_function_name(resource_name: str):
 
     name = resource_name.lstrip("/")
 
-    if name.startswith("cloudfunctions.googleapis.com/"):
+    if name.split("/")[0] == "cloudfunctions.googleapis.com":
         name = name.replace(
             "cloudfunctions.googleapis.com/",
             "",

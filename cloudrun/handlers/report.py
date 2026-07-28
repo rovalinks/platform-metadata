@@ -54,4 +54,4 @@ def get_projects():
         projects = get_all_active_projects()
         return jsonify({"projects": projects, "count": len(projects)})
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "An internal server error occurred."}), 500

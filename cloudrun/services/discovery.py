@@ -73,15 +73,15 @@ class DiscoveryService:
             res_name_lower = resource.name.lower()
 
             # 1. Compute Engine Defaults
-            if "compute.googleapis.com" in asset_type_lower:
+            if asset_type_lower.split("/")[0] == "compute.googleapis.com":
                 if res_name_lower.endswith("/networks/default"): is_default = True
                 elif "/subnetworks/default" in res_name_lower: is_default = True
                 elif "/firewalls/default-" in res_name_lower: is_default = True
                 elif "/routes/default-route" in res_name_lower: is_default = True
 
             # 2. Cloud Storage Defaults (Google Managed)
-            elif "storage.googleapis.com/bucket" in asset_type_lower:
-                if "artifacts." in res_name_lower and ".appspot.com" in res_name_lower: is_default = True
+            elif asset_type_lower.split("/")[0] == "storage.googleapis.com":
+                if "artifacts." in res_name_lower and res_name_lower.endswith(".appspot.com"): is_default = True
                 elif "gcf-sources-" in res_name_lower: is_default = True
                 elif "cloud-build-logs-" in res_name_lower: is_default = True
                 elif res_name_lower.endswith("_cloudbuild"): is_default = True
@@ -170,15 +170,15 @@ class DiscoveryService:
 #             res_name_lower = resource.name.lower()
 
 #             # 1. Compute Engine Defaults
-#             if "compute.googleapis.com" in asset_type_lower:
+#             if asset_type_lower.split("/")[0] == "compute.googleapis.com":
 #                 if res_name_lower.endswith("/networks/default"): is_default = True
 #                 elif "/subnetworks/default" in res_name_lower: is_default = True
 #                 elif "/firewalls/default-" in res_name_lower: is_default = True
 #                 elif "/routes/default-route" in res_name_lower: is_default = True
 
 #             # 2. Cloud Storage Defaults (Google Managed)
-#             elif "storage.googleapis.com/bucket" in asset_type_lower:
-#                 if "artifacts." in res_name_lower and ".appspot.com" in res_name_lower: is_default = True
+#             elif asset_type_lower.split("/")[0] == "storage.googleapis.com":
+#                 if "artifacts." in res_name_lower and res_name_lower.endswith(".appspot.com"): is_default = True
 #                 elif "gcf-sources-" in res_name_lower: is_default = True
 #                 elif "cloud-build-logs-" in res_name_lower: is_default = True
 #                 elif res_name_lower.endswith("_cloudbuild"): is_default = True

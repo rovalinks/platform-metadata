@@ -70,12 +70,12 @@ class ComputeClient(ResourceClient):
         self.url_maps = compute_v1.UrlMapsClient()
         self.region_url_maps = compute_v1.RegionUrlMapsClient()
 
-    def supports(self, a): return a.startswith("compute.googleapis.com/")
+    def supports(self, a): return a.split("/")[0] == "compute.googleapis.com"
     
     def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
     
     def _parse_resource_url(self, u):
-        if "//compute.googleapis.com/" in u: u = u.split("//compute.googleapis.com/")[1]
+        if "//" in u: u = u.split("//")[-1].split("/", 1)[-1]
         if "projects/" in u: u = u[u.find("projects/"):]
         p = u.strip("/").split("/")
         proj, scope = p[1], p[2]
@@ -250,12 +250,12 @@ class ComputeClient(ResourceClient):
 #         # self.region_instance_group_managers = compute_v1.RegionInstanceGroupManagersClient()
 #         # self.security_policies = compute_v1.SecurityPoliciesClient()
 
-#     def supports(self, a): return a.startswith("compute.googleapis.com/")
+#     def supports(self, a): return a.split("/")[0] == "compute.googleapis.com"
     
 #     def supports_labels(self, a): return a in self.SUPPORTED_LABEL_TYPES
     
 #     def _parse_resource_url(self, u):
-#         if "//compute.googleapis.com/" in u: u = u.split("//compute.googleapis.com/")[1]
+#         if "//" in u: u = u.split("//")[-1].split("/", 1)[-1]
 #         if "projects/" in u: u = u[u.find("projects/"):]
 #         p = u.strip("/").split("/")
 #         proj, scope = p[1], p[2]

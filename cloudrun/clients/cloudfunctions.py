@@ -11,7 +11,7 @@ class CloudFunctionsClient:
 
     def supports(self, asset_type: str) -> bool:
         supported_types = SUPPORTED_LABEL_RESOURCES.union(SUPPORTED_TAG_RESOURCES)
-        return asset_type in supported_types and "cloudfunctions.googleapis.com/" in asset_type
+        return asset_type in supported_types and asset_type.split("/")[0] == "cloudfunctions.googleapis.com"
 
     def _parse_resource_name(self, resource_url: str):
         # CAI format: //cloudfunctions.googleapis.com/projects/P/locations/L/functions/F

@@ -19,9 +19,7 @@ class SecretManagerClient(ResourceClient):
         resource_name: str,
     ) -> str:
         """Normalizes the secret resource name."""
-        if resource_name.startswith(
-            "//secretmanager.googleapis.com/"
-        ):
+        if resource_name.split("//")[-1].split("/")[0] == "secretmanager.googleapis.com":
             return resource_name.replace(
                 "//secretmanager.googleapis.com/",
                 "",
