@@ -4,6 +4,8 @@ Enterprise serverless metadata governance platform for Google Cloud. It supports
 
 > **Source-of-truth rule:** A client/adaptor existing in the repository does not by itself mean that a resource is enabled. Runtime enablement is controlled by `cloudrun/utils/supported_resources.py`.
 
+CPE/Infrastructure/MouriTech/DevOps Team for platform engineering (GCP Tagging/Labeling)
+
 ## 1. Objectives
 
 - Centralised metadata governance across GCP projects
