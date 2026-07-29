@@ -44,13 +44,11 @@ jobs:
 
       - name: Synchronise Registry Bucket
         run: |
-          # Safe Bash-native capitalization logic 
           ENV_NAME=$(echo "${{ matrix.environment }}" | tr '[:lower:]' '[:upper:]')
           echo "Synchronising registry assets to ${ENV_NAME} bucket: ${{ vars.REGISTRY_BUCKET }}..."
           
-          # Dynamically pulls from registry/dev/... or registry/prod/...
           gcloud storage rsync \
             registry/${{ matrix.environment }}/applications \
             gs://${{ vars.REGISTRY_BUCKET }}/applications \
             --recursive \
-            --delete-unmatched
+            --delete-unmatched-destination-objects
