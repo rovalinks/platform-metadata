@@ -11,7 +11,7 @@ costCenter: C0000001
 bindings:
 
   - cloud: gcp
-    projectId: prods
+    projectId: prod-poc
     region: us-central1
     environment: dev
     businessCriticality: low
