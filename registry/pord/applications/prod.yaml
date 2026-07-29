@@ -1,0 +1,17 @@
+schemaVersion: v1
+
+product: poc
+team: poc_team
+owner: joe
+budgetOwner: dustin
+organization: rouse
+department: engineering
+costCenter: C0000001
+
+bindings:
+
+  - cloud: gcp
+    projectId: prod
+    region: us-central1
+    environment: dev
+    businessCriticality: low
