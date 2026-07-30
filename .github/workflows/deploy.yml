@@ -95,7 +95,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # STEP 1: Deploy with all known variables
+      # STEP 1: Deploy with all known variables PLUS a placeholder URL to prevent crash
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
@@ -105,7 +105,7 @@ jobs:
             --memory=1Gi \
             --no-allow-unauthenticated \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
-            --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
+            --set-env-vars="CLOUD_RUN_URL=https://pending-injection,PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
 
       # STEP 2: Fetch the live URL and inject it back into the service so Cloud Tasks works
       - name: Inject Dynamic Cloud Run URL
@@ -159,7 +159,7 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      # STEP 1: Deploy with all known variables
+      # STEP 1: Deploy with all known variables PLUS a placeholder URL to prevent crash
       - name: Deploy Cloud Run
         run: |
           gcloud run deploy ${{ vars.CLOUD_RUN_SERVICE }} \
@@ -169,7 +169,7 @@ jobs:
             --memory=1Gi \
             --no-allow-unauthenticated \
             --service-account=${{ secrets.WIF_SERVICE_ACCOUNT }} \
-            --set-env-vars="PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
+            --set-env-vars="CLOUD_RUN_URL=https://pending-injection,PROJECT_ID=${{ vars.PROJECT_ID }},REGION=${{ vars.REGION }},TAG_PARENT=${{ vars.TAG_PARENT }},REGISTRY_BUCKET=${{ vars.REGISTRY_BUCKET }},REGISTRY_PREFIX=applications,BIGQUERY_DATASET=${{ vars.BIGQUERY_DATASET }},TASK_QUEUE=${{ vars.TASK_QUEUE }},SERVICE_ACCOUNT_EMAIL=${{ secrets.WIF_SERVICE_ACCOUNT }},DRY_RUN=${{ vars.DRY_RUN }}"
 
       # STEP 2: Fetch the live URL and inject it back into the service so Cloud Tasks works
       - name: Inject Dynamic Cloud Run URL
