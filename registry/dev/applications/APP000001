@@ -12,6 +12,6 @@ bindings:
 
   - cloud: gcp
     projectId: rs-tagging-poc
-    region: us-central1-a
+    region: us-central1
     environment: dev
     businessCriticality: low
