@@ -20,7 +20,7 @@ SUPPORTED_LABEL_RESOURCES = {
     # "compute.googleapis.com/Disk",
     # "compute.googleapis.com/ForwardingRule",
     # "compute.googleapis.com/Image",
-    # "compute.googleapis.com/Instance",
+    "compute.googleapis.com/Instance",
     # "compute.googleapis.com/MachineImage",
     # "compute.googleapis.com/Snapshot",
     # "compute.googleapis.com/BackendService",
