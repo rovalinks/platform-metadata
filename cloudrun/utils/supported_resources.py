@@ -17,7 +17,7 @@ SUPPORTED_LABEL_RESOURCES = {
     # "cloudkms.googleapis.com/CryptoKey",
     "cloudresourcemanager.googleapis.com/Project",
     # "compute.googleapis.com/Address",
-    "compute.googleapis.com/Disk",
+    # "compute.googleapis.com/Disk",
     # "compute.googleapis.com/ForwardingRule",
     # "compute.googleapis.com/Image",
     # "compute.googleapis.com/Instance",
