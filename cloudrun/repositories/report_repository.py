@@ -1,5 +1,6 @@
 from google.cloud import bigquery
 import config
+from utils.logger import logger
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 
 class ReportRepository:
@@ -53,13 +54,17 @@ class ReportRepository:
     #     return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
 
     def _job(self, query: str, params: list | None = None):
-        print(query)
-        return self.client.query(
-            query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=params or []
-            )
+    logger.info("========== GENERATED SQL ==========")
+    logger.info(query)
+    logger.info("===================================")
+
+    return self.client.query(
+        query,
+        job_config=bigquery.QueryJobConfig(
+            query_parameters=params or []
         )
+    )
+    
     def _rows(self, job):
         return [dict(row.items()) for row in job.result()]
 
