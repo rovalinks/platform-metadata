@@ -7,7 +7,7 @@ class ReportRepository:
     
     # DYNAMICALLY COMBINE ALL SUPPORTED RESOURCES
     # Convert to a tuple so Python string formatting natively creates the SQL ( 'a', 'b' ) syntax
-    VALID_ASSETS = tuple(SUPPORTED_LABEL_RESOURCES + SUPPORTED_TAG_RESOURCES)
+    VALID_ASSETS = tuple({*SUPPORTED_LABEL_RESOURCES, *SUPPORTED_TAG_RESOURCES})
 
     def __init__(self):
         self.client = bigquery.Client()
