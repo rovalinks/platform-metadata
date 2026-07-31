@@ -5,8 +5,15 @@ from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_R
 class ReportRepository:
     """Read-only repository used for governance reporting."""
     
-    # DYNAMICALLY COMBINE ALL SUPPORTED RESOURCES
-    # Convert to a tuple so Python string formatting natively creates the SQL ( 'a', 'b' ) syntax
+    # Updated to an actual tuple for SQL IN clause compatibility
+    # VALID_ASSETS = (
+    #     'compute.googleapis.com/Instance', 'compute.googleapis.com/Disk', 
+    #     'compute.googleapis.com/Snapshot', 'compute.googleapis.com/Image', 
+    #     'compute.googleapis.com/ForwardingRule', 'compute.googleapis.com/ExternalVpnGateway', 
+    #     'compute.googleapis.com/TargetVpnGateway', 'compute.googleapis.com/VpnGateway', 
+    #     'compute.googleapis.com/VpnTunnel', 'compute.googleapis.com/Router', 
+    #     'compute.googleapis.com/Address', 'compute.googleapis.com/MachineImage'
+    # )
     VALID_ASSETS = tuple([*SUPPORTED_LABEL_RESOURCES, *SUPPORTED_TAG_RESOURCES])
 
     def __init__(self):
