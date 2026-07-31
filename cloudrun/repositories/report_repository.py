@@ -152,19 +152,47 @@ class ReportRepository:
         return results
 
     def project_summary(self, scope: str = "organization", project_id: str | None = None):
-        where_clause, params = self._scope_filter(scope, project_id, "c.project_id")
-        comp_prefix = "WHERE" if not where_clause else f"{where_clause} AND"
+        # Change the scope filter to target the resource snapshot table (r)
+        where_clause, params = self._scope_filter(scope, project_id, "r.project_id")
+        
         query = f"""
-        WITH latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1)
-        SELECT c.project_id, COUNT(*) AS total_resources, COUNTIF(c.compliant) AS compliant_resources, COUNTIF(NOT c.compliant) AS non_compliant_resources
-        FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS} GROUP BY c.project_id ORDER BY total_resources DESC
+        WITH latest_resources AS (
+            SELECT project_id 
+            FROM `{self.dataset}.resource_snapshot` 
+            QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY snapshot_time DESC) = 1
+        ),
+        latest_compliance AS (
+            SELECT project_id, resource_name, compliant 
+            FROM `{self.dataset}.compliance_snapshot` 
+            WHERE asset_type IN {self.VALID_ASSETS}
+            QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1
+        ),
+        project_list AS (
+            -- 1. Get a master list of EVERY project we discovered
+            SELECT DISTINCT project_id FROM latest_resources r {where_clause}
+        )
+        -- 2. LEFT JOIN the compliance data so empty projects don't get dropped
+        SELECT 
+            p.project_id, 
+            COUNT(c.resource_name) AS total_resources, 
+            COUNTIF(c.compliant = TRUE) AS compliant_resources, 
+            COUNTIF(c.compliant = FALSE) AS non_compliant_resources
+        FROM project_list p
+        LEFT JOIN latest_compliance c ON p.project_id = c.project_id
+        GROUP BY p.project_id 
+        ORDER BY total_resources DESC
         """
+        
         results = []
         for row in self._job(query, params).result():
             total = row.total_resources
             results.append({
-                "project_id": row.project_id, "total_resources": total, "compliant_resources": row.compliant_resources,
-                "non_compliant_resources": row.non_compliant_resources, "compliance_percentage": (round(row.compliant_resources * 100 / total, 2) if total else 100),
+                "project_id": row.project_id, 
+                "total_resources": total, 
+                "compliant_resources": row.compliant_resources,
+                "non_compliant_resources": row.non_compliant_resources, 
+                # If total is 0, default to 100% compliant so it doesn't penalize your score
+                "compliance_percentage": (round(row.compliant_resources * 100 / total, 2) if total > 0 else 100),
             })
         return results
 
