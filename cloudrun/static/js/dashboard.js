@@ -185,7 +185,7 @@ function renderResourceTypes(resources) {
         <div class="resource-grid">
             ${resources.map(resource => `
                 <div class="resource-card">
-                    <div class="resource-header"><div><div class="resource-title">${formatAssetType(resource.asset_type)}</div><div class="resource-subtitle">${resource.asset_type}</div></div><div>${statusBadge(resource.compliance_percentage)}</div></div>
+                    <div class="resource-header"><div><div class="resource-title">${resource.display_name}</div><div class="resource-subtitle">${resource.asset_type}</div></div><div>${statusBadge(resource.compliance_percentage)}</div></div>
                     <div class="resource-progress">${progressBar(resource.compliance_percentage)}</div>
                     <div class="resource-metrics">
                         <div class="resource-metric"><div class="metric-label">Resources</div><div class="metric-number">${formatNumber(resource.total)}</div></div>
@@ -253,7 +253,7 @@ function renderNonCompliant(resources) {
                         </div>
                         <div><span class="badge badge-error">Attention</span></div>
                     </div>
-                    <div class="resource-type">${formatAssetType(resource.asset_type)}</div>
+                    <div class="resource-type">${resource.display_name}</div>
                     <div class="label-section">
                         <div class="label-title">Missing Labels</div>
                         <div class="label-list">${renderLabelBadges(resource.missing_labels, "missing")}</div>
@@ -276,7 +276,7 @@ function renderNonCompliant(resources) {
 
 function renderGreenfieldProjects(p) { document.getElementById("projects-container").innerHTML = `<table class="data-table"><thead><tr><th>Project</th><th>Events</th><th>Successful</th><th>Failed</th></tr></thead><tbody>${p.map(x => `<tr><td>${x.project_id}</td><td>${formatNumber(x.total_events)}</td><td>${formatNumber(x.successful)}</td><td>${formatNumber(x.failed)}</td></tr>`).join("")}</tbody></table>`; }
 
-function renderGreenfieldResourceTypes(r) { document.getElementById("resource-types-container").innerHTML = `<table class="data-table"><thead><tr><th>Resource Type</th><th>Events</th><th>Successful</th><th>Failed</th></tr></thead><tbody>${r.map(x => `<tr><td>${formatAssetType(x.asset_type)}</td><td>${formatNumber(x.total_events)}</td><td>${formatNumber(x.successful)}</td><td>${formatNumber(x.failed)}</td></tr>`).join("")}</tbody></table>`; }
+function renderGreenfieldResourceTypes(r) { document.getElementById("resource-types-container").innerHTML = `<table class="data-table"><thead><tr><th>Resource Type</th><th>Events</th><th>Successful</th><th>Failed</th></tr></thead><tbody>${r.map(x => `<tr><td>${x.display_name}</td><td>${formatNumber(x.total_events)}</td><td>${formatNumber(x.successful)}</td><td>${formatNumber(x.failed)}</td></tr>`).join("")}</tbody></table>`; }
 
 function renderGreenfieldRecentActivity(activity) {
     const container = document.getElementById("recent-runs-container");
@@ -301,7 +301,7 @@ function renderGreenfieldRecentActivity(activity) {
                         <div class="activity-content">
                             <div class="activity-header">
                                 <div>
-                                    <div class="activity-title">${operationIcon(event.operation)} ${formatAssetType(event.asset_type)}</div>
+                                    <div class="activity-title">${operationIcon(event.operation)} ${event.display_name}</div>
                                     <div class="activity-subtitle">${shortResource(event.resource_name)}</div>
                                 </div>
                                 <span class="badge ${badge}">${event.status}</span>
@@ -343,11 +343,6 @@ function renderLabelBadges(labels, type) {
     } catch {
         return `<span class="badge badge-warning">${labels}</span>`;
     }
-}
-
-function formatAssetType(a) { 
-    const n = { "compute.googleapis.com/Instance": "Compute Instance", "compute.googleapis.com/Disk": "Compute Disk", "compute.googleapis.com/Address": "Static IP", "compute.googleapis.com/ForwardingRule": "Forwarding Rule", "storage.googleapis.com/Bucket": "Cloud Storage Bucket", "bigquery.googleapis.com/Dataset": "BigQuery Dataset", "pubsub.googleapis.com/Topic": "Pub/Sub Topic", "artifactregistry.googleapis.com/Repository": "Artifact Registry", "container.googleapis.com/Cluster": "GKE Cluster", "container.googleapis.com/NodePool": "GKE Node Pool", "sqladmin.googleapis.com/Instance": "Cloud SQL", "secretmanager.googleapis.com/Secret": "Secret Manager Secret", "cloudkms.googleapis.com/CryptoKey": "Cloud KMS Key" }; 
-    return n[a] || a; 
 }
 
 function operationIcon(operation) {

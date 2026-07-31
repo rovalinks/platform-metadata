@@ -2,19 +2,12 @@ from google.cloud import bigquery
 import config
 from utils.logger import logger
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
+from utils.asset_name import asset_display_name
 
 class ReportRepository:
     """Read-only repository used for governance reporting."""
     
     # Updated to an actual tuple for SQL IN clause compatibility
-    # VALID_ASSETS = (
-    #     'compute.googleapis.com/Instance', 'compute.googleapis.com/Disk', 
-    #     'compute.googleapis.com/Snapshot', 'compute.googleapis.com/Image', 
-    #     'compute.googleapis.com/ForwardingRule', 'compute.googleapis.com/ExternalVpnGateway', 
-    #     'compute.googleapis.com/TargetVpnGateway', 'compute.googleapis.com/VpnGateway', 
-    #     'compute.googleapis.com/VpnTunnel', 'compute.googleapis.com/Router', 
-    #     'compute.googleapis.com/Address', 'compute.googleapis.com/MachineImage'
-    # )
     VALID_ASSETS = tuple(
         dict.fromkeys(
             [*SUPPORTED_LABEL_RESOURCES, *SUPPORTED_TAG_RESOURCES]
@@ -52,17 +45,6 @@ class ReportRepository:
 
     def _job(self, query: str, params: list | None = None):
         return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
-
-    # def _job(self, query: str, params: list | None = None):
-    #     print("========== GENERATED SQL ==========")
-    #     print(query)
-    #     print("===================================")
-    #     return self.client.query(
-    #         query,
-    #         job_config=bigquery.QueryJobConfig(
-    #             query_parameters=params or []
-    #         )
-    #     )
 
     def _rows(self, job):
         return [dict(row.items()) for row in job.result()]
@@ -174,7 +156,7 @@ class ReportRepository:
         results = []
         for row in self._job(query, params).result():
             results.append({
-                "asset_type": row.asset_type, "total": row.total, "compliant": row.compliant,
+                "asset_type": row.asset_type, "display_name": asset_display_name(row.asset_type), "total": row.total, "compliant": row.compliant, 
                 "non_compliant": row.non_compliant, "compliance_percentage": round(row.compliant * 100 / row.total, 2) if row.total > 0 else 100,
             })
         return results
@@ -191,7 +173,7 @@ class ReportRepository:
         for row in self._job(query, params).result():
             total = row.total_resources
             results.append({
-                "project_id": row.project_id, "total_resources": total, "compliant_resources": row.compliant_resources,
+                "project_id": row.project_id, "display_name": asset_display_name(row.asset_type), "total_resources": total, "compliant_resources": row.compliant_resources,
                 "non_compliant_resources": row.non_compliant_resources, "compliance_percentage": (round(row.compliant_resources * 100 / total, 2) if total else 100),
             })
         return results
