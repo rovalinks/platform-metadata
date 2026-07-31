@@ -54,17 +54,16 @@ class ReportRepository:
     #     return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
 
     def _job(self, query: str, params: list | None = None):
-    logger.info("========== GENERATED SQL ==========")
-    logger.info(query)
-    logger.info("===================================")
-
-    return self.client.query(
-        query,
-        job_config=bigquery.QueryJobConfig(
-            query_parameters=params or []
+        print("========== GENERATED SQL ==========")
+        print(query)
+        print("===================================")
+        return self.client.query(
+            query,
+            job_config=bigquery.QueryJobConfig(
+                query_parameters=params or []
+            )
         )
-    )
-    
+
     def _rows(self, job):
         return [dict(row.items()) for row in job.result()]
 
