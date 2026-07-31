@@ -1,18 +1,13 @@
 from google.cloud import bigquery
 import config
+from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
 
 class ReportRepository:
     """Read-only repository used for governance reporting."""
     
-    # Updated to an actual tuple for SQL IN clause compatibility
-    VALID_COMPUTE_ASSETS = (
-        'compute.googleapis.com/Instance', 'compute.googleapis.com/Disk', 
-        'compute.googleapis.com/Snapshot', 'compute.googleapis.com/Image', 
-        'compute.googleapis.com/ForwardingRule', 'compute.googleapis.com/ExternalVpnGateway', 
-        'compute.googleapis.com/TargetVpnGateway', 'compute.googleapis.com/VpnGateway', 
-        'compute.googleapis.com/VpnTunnel', 'compute.googleapis.com/Router', 
-        'compute.googleapis.com/Address', 'compute.googleapis.com/MachineImage'
-    )
+    # DYNAMICALLY COMBINE ALL SUPPORTED RESOURCES
+    # Convert to a tuple so Python string formatting natively creates the SQL ( 'a', 'b' ) syntax
+    VALID_ASSETS = tuple(SUPPORTED_LABEL_RESOURCES + SUPPORTED_TAG_RESOURCES)
 
     def __init__(self):
         self.client = bigquery.Client()
@@ -65,7 +60,7 @@ class ReportRepository:
         latest_resources AS (SELECT * FROM `{self.dataset}.resource_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY snapshot_time DESC) = 1),
         latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1),
         resources AS (SELECT COUNT(*) AS total_resources, COUNT(DISTINCT project_id) AS total_projects FROM latest_resources r {where_clause}),
-        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(FALSE) AS non_compliant_resources FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_COMPUTE_ASSETS}),
+        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(FALSE) AS non_compliant_resources FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS}),
         plans AS (SELECT COUNT(*) AS planned_remediations FROM `{self.dataset}.remediation_plan` {where_clause.replace("r.project_id", "project_id")}),
         latest_execution AS (SELECT status, ROW_NUMBER() OVER(PARTITION BY run_id, resource_name ORDER BY executed_at DESC) as rn FROM `{self.dataset}.remediation_execution` {where_clause.replace("r.project_id", "project_id")}),
         executions AS (SELECT COUNT(*) AS executed_remediations, COUNTIF(status = 'SUCCESS') AS successful_remediations, COUNTIF(status = 'FAILED') AS failed_remediations, COUNTIF(status = 'IN_PROGRESS') AS in_progress_remediations FROM latest_execution WHERE rn = 1)
@@ -125,7 +120,7 @@ class ReportRepository:
         comp_prefix = "WHERE" if not and_clause else f"{and_clause} AND"
         query = f"""
         WITH latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1)
-        SELECT c.project_id, c.asset_type, c.resource_name FROM latest_compliance c WHERE c.compliant = FALSE {and_clause} AND c.asset_type IN {self.VALID_COMPUTE_ASSETS}
+        SELECT c.project_id, c.asset_type, c.resource_name FROM latest_compliance c WHERE c.compliant = FALSE {and_clause} AND c.asset_type IN {self.VALID_ASSETS}
         ORDER BY c.asset_type, c.resource_name LIMIT @limit
         """
         return self._rows(self._job(query, params))
@@ -136,7 +131,7 @@ class ReportRepository:
         query = f"""
         WITH latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1)
         SELECT c.project_id, c.asset_type, c.resource_name, c.missing_labels, c.incorrect_labels
-        FROM latest_compliance c WHERE c.compliant = FALSE {and_clause} AND c.asset_type IN {self.VALID_COMPUTE_ASSETS} LIMIT @limit
+        FROM latest_compliance c WHERE c.compliant = FALSE {and_clause} AND c.asset_type IN {self.VALID_ASSETS} LIMIT @limit
         """
         return self._rows(self._job(query, params))
 
@@ -146,7 +141,7 @@ class ReportRepository:
         query = f"""
         WITH latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1)
         SELECT c.asset_type, COUNT(*) AS total, COUNTIF(c.compliant) AS compliant, COUNTIF(NOT c.compliant) AS non_compliant
-        FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_COMPUTE_ASSETS} GROUP BY c.asset_type ORDER BY total DESC
+        FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS} GROUP BY c.asset_type ORDER BY total DESC
         """
         results = []
         for row in self._job(query, params).result():
@@ -162,7 +157,7 @@ class ReportRepository:
         query = f"""
         WITH latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1)
         SELECT c.project_id, COUNT(*) AS total_resources, COUNTIF(c.compliant) AS compliant_resources, COUNTIF(NOT c.compliant) AS non_compliant_resources
-        FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_COMPUTE_ASSETS} GROUP BY c.project_id ORDER BY total_resources DESC
+        FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS} GROUP BY c.project_id ORDER BY total_resources DESC
         """
         results = []
         for row in self._job(query, params).result():
