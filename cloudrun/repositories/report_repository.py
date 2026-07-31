@@ -50,19 +50,19 @@ class ReportRepository:
     def _limit_parameter(self, limit: int) -> bigquery.ScalarQueryParameter:
         return bigquery.ScalarQueryParameter("limit", "INT64", limit)
 
-    # def _job(self, query: str, params: list | None = None):
-    #     return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
-
     def _job(self, query: str, params: list | None = None):
-        print("========== GENERATED SQL ==========")
-        print(query)
-        print("===================================")
-        return self.client.query(
-            query,
-            job_config=bigquery.QueryJobConfig(
-                query_parameters=params or []
-            )
-        )
+        return self.client.query(query, job_config=bigquery.QueryJobConfig(query_parameters=params or []))
+
+    # def _job(self, query: str, params: list | None = None):
+    #     print("========== GENERATED SQL ==========")
+    #     print(query)
+    #     print("===================================")
+    #     return self.client.query(
+    #         query,
+    #         job_config=bigquery.QueryJobConfig(
+    #             query_parameters=params or []
+    #         )
+    #     )
 
     def _rows(self, job):
         return [dict(row.items()) for row in job.result()]
