@@ -13,7 +13,8 @@ def get_all_active_projects():
 
     engine_project = config.PROJECT_ID.lower()
 
-    if "dev" in engine_project:
+    # Treat both 'dev' and 'poc' engine projects under the 'dev' umbrella
+    if "dev" in engine_project or "poc" in engine_project:
         environment = "dev"
     elif "prod" in engine_project:
         environment = "prod"
@@ -41,8 +42,11 @@ def get_all_active_projects():
             project_ids.append(pid)
             continue
 
-        # Match any occurrence of dev/prod anywhere in the project ID
-        if environment in pid_lower:
+        # If environment is 'dev', match projects containing 'dev' OR 'poc'
+        if environment == "dev":
+            if "dev" in pid_lower or "poc" in pid_lower:
+                project_ids.append(pid)
+        elif environment in pid_lower:
             project_ids.append(pid)
 
     project_ids.sort()

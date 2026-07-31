@@ -16,10 +16,10 @@ class ReportRepository:
     # )
     VALID_ASSETS = tuple(
         dict.fromkeys(
-            ['cloudresourcemanager.googleapis.com/Project', *SUPPORTED_LABEL_RESOURCES, *SUPPORTED_TAG_RESOURCES]
+            [*SUPPORTED_LABEL_RESOURCES, *SUPPORTED_TAG_RESOURCES]
         )
     )
-    
+
     def __init__(self):
         self.client = bigquery.Client()
         self.dataset = config.BIGQUERY_DATASET
@@ -71,7 +71,7 @@ class ReportRepository:
         latest_resources AS (SELECT * FROM `{self.dataset}.resource_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY snapshot_time DESC) = 1),
         latest_compliance AS (SELECT * FROM `{self.dataset}.compliance_snapshot` QUALIFY ROW_NUMBER() OVER(PARTITION BY project_id, resource_name ORDER BY evaluated_time DESC) = 1),
         resources AS (SELECT COUNT(*) AS total_resources, COUNT(DISTINCT project_id) AS total_projects FROM latest_resources r {where_clause}),
-        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(FALSE) AS non_compliant_resources FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS}),
+        compliance AS (SELECT COUNT(*) AS supported_resources, COUNTIF(compliant = TRUE) AS compliant_resources, COUNTIF(compliant = FALSE) AS non_compliant_resources FROM latest_compliance c {comp_prefix} c.asset_type IN {self.VALID_ASSETS}),
         plans AS (SELECT COUNT(*) AS planned_remediations FROM `{self.dataset}.remediation_plan` {where_clause.replace("r.project_id", "project_id")}),
         latest_execution AS (SELECT status, ROW_NUMBER() OVER(PARTITION BY run_id, resource_name ORDER BY executed_at DESC) as rn FROM `{self.dataset}.remediation_execution` {where_clause.replace("r.project_id", "project_id")}),
         executions AS (SELECT COUNT(*) AS executed_remediations, COUNTIF(status = 'SUCCESS') AS successful_remediations, COUNTIF(status = 'FAILED') AS failed_remediations, COUNTIF(status = 'IN_PROGRESS') AS in_progress_remediations FROM latest_execution WHERE rn = 1)
