@@ -20,13 +20,15 @@ def get_all_active_projects():
         if pid == config.PROJECT_ID:
             continue
 
-        # 3. Filter strictly based on the environment tag in the project name
+        # 3. Filter based on the environment tag in the project name
         if env_suffix:
-            # Matches "-dev-" or ends with "-dev", etc.
+            # Match standard dev/prod conventions (e.g. contains '-dev-' or ends with '-dev')
             if f"-{env_suffix}-" in pid or pid.endswith(f"-{env_suffix}"):
                 project_ids.append(pid)
-            # --- FIX: Explicitly allow POC projects to show up in the Dev dashboard ---
-            elif env_suffix == "dev" and ("-poc-" in pid or pid.endswith("-poc")):
+            
+            # --- ROBUST POC INCLUSION FIX ---
+            # Explicitly capture any project containing 'poc' when running in the dev environment
+            elif env_suffix == "dev" and ("poc" in pid):
                 project_ids.append(pid)
         else:
             # Fallback if no env suffix is detected
