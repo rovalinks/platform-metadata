@@ -173,7 +173,7 @@ class ReportRepository:
         for row in self._job(query, params).result():
             total = row.total_resources
             results.append({
-                "project_id": row.project_id, "display_name": asset_display_name(row.asset_type), "total_resources": total, "compliant_resources": row.compliant_resources,
+                "project_id": row.project_id, "total_resources": total, "compliant_resources": row.compliant_resources,
                 "non_compliant_resources": row.non_compliant_resources, "compliance_percentage": (round(row.compliant_resources * 100 / total, 2) if total else 100),
             })
         return results
