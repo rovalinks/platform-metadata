@@ -1,3 +1,4 @@
+import os
 import requests
 from utils.logger import logger
 import config
