@@ -41,6 +41,20 @@ class ComplianceService:
                 
             # Extract the mandatory seed label
             seed_value = actual_labels.get("product")
+
+            # ---> THE MISSING SEED TRAP <---
+            if not seed_value:
+                logger.warning(f"Resource {resource.name} is missing the 'product' seed label. Flagging as non-compliant.")
+                results.append(ComplianceResult(
+                    asset_type=resource.asset_type,
+                    name=resource.name,
+                    project=resource.project,
+                    compliant=False,
+                    missing_labels=["product (MISSING MANDATORY SEED)"],
+                    incorrect_labels=[],
+                ))
+                continue
+            # -------------------------------
             
             # Create a unique cache key for Project + Product to prevent cross-contamination
             cache_key = f"{project}::{seed_value}"
@@ -102,6 +116,19 @@ class ComplianceService:
             actual_labels = {}
             
         seed_value = actual_labels.get("product")
+
+        # ---> THE MISSING SEED TRAP <---
+        if not seed_value:
+            logger.warning(f"Resource {resource.name} is missing the 'product' seed label. Flagging as non-compliant.")
+            return ComplianceResult(
+                asset_type=resource.asset_type,
+                name=resource.name,
+                project=resource.project,
+                compliant=False,
+                missing_labels=["product (MISSING MANDATORY SEED)"],
+                incorrect_labels=[],
+            )
+        # -------------------------------
 
         if is_label_supported:
             expected = self.governance.expected_labels(resource.project, seed_value, resource.asset_type)

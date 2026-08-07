@@ -124,6 +124,12 @@ class GreenfieldService:
                             if isinstance(value, dict) and "labels" in value:
                                 developer_labels = value.get("labels", {})
                                 break
+
+                # ---> THE LIST FIX <---
+                # If Google formatted the labels as a list of dicts, convert them back!
+                if isinstance(developer_labels, list):
+                    developer_labels = {item.get("key"): item.get("value") for item in developer_labels if isinstance(item, dict)}
+                # ----------------------
                 
                 seed_value = developer_labels.get("product")
 
