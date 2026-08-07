@@ -1,6 +1,6 @@
 schemaVersion: v1
 
-product: poc
+product: payments
 team: poc_team
 owner: joe
 budgetOwner: dustin
@@ -12,7 +12,7 @@ div: dev-div
 bindings:
 
   - cloud: gcp
-    projectId: rs-tagging-poc
+    projectId: payments-dev-1
     region: us-central1
     environment: dev
     businessCriticality: low
