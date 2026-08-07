@@ -24,29 +24,34 @@ class GovernanceService:
                 )
         return projects
 
-    def project_metadata(self, seed_value: str):
-        """Returns the application and matching deployment binding based on the seed value."""
+    def project_metadata(self, actual_project_id: str, product_seed_label: str):
+        """Returns the application and binding by matching BOTH Project ID and Product."""
         for application in self.registry.load_all():
-            for binding in application.get("bindings", []):
-                if binding.get("cloud") != "gcp":
-                    continue
+            
+            # 1. First, check if the product matches the developer's label
+            if application.get("product") == product_seed_label:
                 
-                # The seed_value passed from the resource's label matches the YAML's projectId
-                if binding.get("projectId") == seed_value:
-                    logger.info(
-                        "Matched application '%s' for seed value '%s'",
-                        application.get("product", "unknown"),
-                        seed_value,
-                    )
-                    return application, binding
+                # 2. Then, check if this application is bound to the actual GCP project
+                for binding in application.get("bindings", []):
+                    if binding.get("cloud") != "gcp":
+                        continue
+                        
+                    if binding.get("projectId") == actual_project_id:
+                        logger.info(
+                            "Matched application '%s' for project '%s'",
+                            product_seed_label,
+                            actual_project_id,
+                        )
+                        return application, binding
         
-        logger.warning("No registry mapping found for seed value: %s", seed_value)
+        logger.warning(f"No registry mapping found for Product: '{product_seed_label}' in Project: '{actual_project_id}'")
         return None, None
 
-    def expected_labels(self, seed_value: str, asset_type: str = None):
-        """Returns expected governance labels for a resource based on its seed value."""
-        logger.info("Loading governance labels for seed value: %s", seed_value)
-        application, binding = self.project_metadata(seed_value)
+    def expected_labels(self, actual_project_id: str, product_seed_label: str, asset_type: str = None):
+        """Returns expected governance labels for a resource based on its project and product seed."""
+        logger.info(f"Loading governance labels for Project: {actual_project_id}, Product: {product_seed_label}")
+        application, binding = self.project_metadata(actual_project_id, product_seed_label)
+        
         if application is None:
             return {}
 
@@ -70,10 +75,11 @@ class GovernanceService:
 
         return labels
 
-    def expected_tags(self, seed_value: str, asset_type: str = None):
-        """Returns expected governance tags for a resource based on its seed value."""
-        logger.info("Loading governance tags for seed value: %s", seed_value)
-        application, binding = self.project_metadata(seed_value)
+    def expected_tags(self, actual_project_id: str, product_seed_label: str, asset_type: str = None):
+        """Returns expected governance tags for a resource based on its project and product seed."""
+        logger.info(f"Loading governance tags for Project: {actual_project_id}, Product: {product_seed_label}")
+        application, binding = self.project_metadata(actual_project_id, product_seed_label)
+        
         if application is None:
             return {}
             

@@ -136,9 +136,10 @@ class GreenfieldService:
                     batch_results.append({"resource": resource.name, "status": "compliant"})
                     continue
 
-                # Remediate (Uses the 'product' seed value instead of GCP Project ID)
-                labels = self.governance.expected_labels(seed_value) if self.capability.supports_labels(resource.asset_type) else {}
-                tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(seed_value)
+                # ---> TWO-KEY LOOKUP LOGIC <---
+                # Remediate (Uses the 'project' ID AND the 'product' seed value)
+                labels = self.governance.expected_labels(resource.project, seed_value, resource.asset_type) if self.capability.supports_labels(resource.asset_type) else {}
+                tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project, seed_value, resource.asset_type)
                 
                 result = self.executor._execute_single_action({
                     "resource": resource.name,

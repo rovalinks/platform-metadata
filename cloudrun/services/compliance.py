@@ -33,16 +33,30 @@ class ComplianceService:
                 continue
                 
             project = resource.project
+            
+            # ---> NEW TWO-KEY SEED LOGIC <---
+            actual_labels = resource.labels if is_label_supported else resource.tags
+            if not actual_labels:
+                actual_labels = {}
+                
+            # Extract the mandatory seed label
+            seed_value = actual_labels.get("product")
+            
+            # Create a unique cache key for Project + Product to prevent cross-contamination
+            cache_key = f"{project}::{seed_value}"
+            
             expected = {}
             
             if is_label_supported:
-                if project not in label_cache:
-                    label_cache[project] = self.governance.expected_labels(project)
-                expected = label_cache[project]
+                if cache_key not in label_cache:
+                    # Pass BOTH keys and the asset type
+                    label_cache[cache_key] = self.governance.expected_labels(project, seed_value, resource.asset_type)
+                expected = label_cache[cache_key]
             else:
-                if project not in tag_cache:
-                    tag_cache[project] = self.governance.expected_tags(project)
-                expected = tag_cache[project]
+                if cache_key not in tag_cache:
+                    # Pass BOTH keys and the asset type
+                    tag_cache[cache_key] = self.governance.expected_tags(project, seed_value, resource.asset_type)
+                expected = tag_cache[cache_key]
                 
             result = self._evaluate_resource(resource, expected, is_label_mode=is_label_supported)
             results.append(result)
@@ -80,11 +94,20 @@ class ComplianceService:
 
     def evaluate_resource(self, resource):
         """Evaluate compliance for a single discovered resource."""
-        if self.capability.supports_labels(resource.asset_type):
-            expected = self.governance.expected_labels(resource.project)
+        
+        # ---> NEW TWO-KEY SEED LOGIC <---
+        is_label_supported = self.capability.supports_labels(resource.asset_type)
+        actual_labels = getattr(resource, 'labels', {}) if is_label_supported else getattr(resource, 'tags', {})
+        if not actual_labels:
+            actual_labels = {}
+            
+        seed_value = actual_labels.get("product")
+
+        if is_label_supported:
+            expected = self.governance.expected_labels(resource.project, seed_value, resource.asset_type)
             return self._evaluate_resource(resource, expected, is_label_mode=True)
         else:
-            expected = self.governance.expected_tags(resource.project)
+            expected = self.governance.expected_tags(resource.project, seed_value, resource.asset_type)
             return self._evaluate_resource(resource, expected, is_label_mode=False)
 
     def summary(self, resources):
