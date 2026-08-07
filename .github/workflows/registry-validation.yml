@@ -51,4 +51,4 @@ jobs:
       - name: Run Schema Validation
         run: |
           # Replace this with the actual name of your python script
-          python validation/validate.py
+          python validation/validate_registry.py
