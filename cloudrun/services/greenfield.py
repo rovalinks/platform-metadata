@@ -108,10 +108,22 @@ class GreenfieldService:
                 resource.project = project_id
                 
                 # ---> NEW SEED LABEL LOGIC (ENFORCING 'product') <---
-                # Safely extract labels attached by the developer
+                # 1. Try to get labels from the resource object
                 developer_labels = getattr(resource, 'labels', {})
+                
+                # 2. If empty, dig into the GCP Audit Log API Request to find what the user typed
                 if not developer_labels:
-                     developer_labels = audit_event.get("raw_payload", {}).get("resource", {}).get("labels", {})
+                    req_payload = audit_event.get("raw_payload", {}).get("protoPayload", {}).get("request", {})
+                    
+                    # Most APIs (like Compute Engine) put labels directly in the request
+                    developer_labels = req_payload.get("labels", {})
+                    
+                    # Fallback for APIs that nest it deeper (like Storage/PubSub)
+                    if not developer_labels:
+                        for key, value in req_payload.items():
+                            if isinstance(value, dict) and "labels" in value:
+                                developer_labels = value.get("labels", {})
+                                break
                 
                 seed_value = developer_labels.get("product")
 
