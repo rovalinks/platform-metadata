@@ -123,7 +123,7 @@ class GreenfieldService:
                     
                     # ---> FIRE THE ALERT HERE <---
                     # We extract the caller's email directly from the Google Cloud Audit Log!
-                    caller_email = audit_event.get("raw_payload", {}).get("authenticationInfo", {}).get("principalEmail", "Unknown")
+                    caller_email = audit_event.get("raw_payload", {}).get("protoPayload", {}).get("authenticationInfo", {}).get("principalEmail", "Unknown User")
                     self.notifications.send_missing_label_alert(resource.name, project_id, caller_email)
                     
                     batch_results.append({"resource": resource.name, "status": "skipped", "reason": "Missing seed label: product"})
