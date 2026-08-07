@@ -19,7 +19,7 @@ class NotificationService:
 
         # 1. Format the standard message
         message = (
-            f"🚨 *FinOps Governance Alert*\n"
+            f"🚨 *Tagging Governance Alert*\n"
             f"User `{creator_email}` just deployed `{resource_name}` in project `{project_id}` "
             f"without the mandatory `product` label.\n"
             f"Please attach the label so the governance engine can map it to the correct billing owner."
