@@ -12,6 +12,7 @@ from services.executor import ExecutorService
 from services.governance import GovernanceService
 from repositories.execution_repository import ExecutionRepository
 from utils.supported_resources import SUPPORTED_LABEL_RESOURCES, SUPPORTED_TAG_RESOURCES
+from services.notification_service import NotificationService
 
 class GreenfieldService:
     """Handles real-time governance for newly created GCP resources."""
@@ -25,6 +26,7 @@ class GreenfieldService:
         self.executor = ExecutorService()
         self.capability = CapabilityService()
         self.execution_repository = ExecutionRepository()
+        self.notifications = NotificationService()
 
     def _record_execution(self, audit_event: dict, asset_type: str, status: str, duration_ms: int, error_message: str = None):
         self.execution_repository.save(
@@ -88,7 +90,6 @@ class GreenfieldService:
             
             if not resources:
                 # DO NOT save unsupported resources to the database to prevent bloat
-                # self._record_execution(audit_event, "UNKNOWN", "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
                 return {"status": "unsupported"}
 
             batch_results = []
@@ -99,8 +100,6 @@ class GreenfieldService:
                 # ---> ADDING THIS GATEKEEPER <---
                 if resource.asset_type not in SUPPORTED_LABEL_RESOURCES and resource.asset_type not in SUPPORTED_TAG_RESOURCES:
                     logger.info("Skipping Greenfield execution: %s is not in supported lists.", resource.asset_type)
-                    # DO NOT save unsupported resources to the database to prevent bloat
-                    # self._record_execution(audit_event, resource.asset_type, "UNSUPPORTED", int((time.perf_counter() - start) * 1000))
                     batch_results.append({"resource": resource.name, "status": "unsupported"})
                     continue
                 # -----------------------------
@@ -108,6 +107,28 @@ class GreenfieldService:
                 resource_start = time.perf_counter()
                 resource.project = project_id
                 
+                # ---> NEW SEED LABEL LOGIC (ENFORCING 'product') <---
+                # Safely extract labels attached by the developer
+                developer_labels = getattr(resource, 'labels', {})
+                if not developer_labels:
+                     developer_labels = audit_event.get("raw_payload", {}).get("resource", {}).get("labels", {})
+                
+                seed_value = developer_labels.get("product")
+
+                # Enforce mandatory 'product' label
+                if not seed_value:
+                    logger.warning(f"Resource {resource.name} is missing the mandatory 'product' seed label!")
+                    
+                    self._record_execution(audit_event, resource.asset_type, "FAILED", int((time.perf_counter() - resource_start) * 1000), "Missing mandatory 'product' label")
+                    
+                    # ---> FIRE THE ALERT HERE <---
+                    # We extract the caller's email directly from the Google Cloud Audit Log!
+                    caller_email = audit_event.get("raw_payload", {}).get("authenticationInfo", {}).get("principalEmail", "Unknown")
+                    self.notifications.send_missing_label_alert(resource.name, project_id, caller_email)
+                    
+                    batch_results.append({"resource": resource.name, "status": "skipped", "reason": "Missing seed label: product"})
+                    continue
+
                 # Check Compliance
                 compliance_results = self.compliance.evaluate([resource])
                 if compliance_results and compliance_results[0].compliant:
@@ -115,9 +136,9 @@ class GreenfieldService:
                     batch_results.append({"resource": resource.name, "status": "compliant"})
                     continue
 
-               # Remediate (Updated to match your exact governance.py)
-                labels = self.governance.expected_labels(resource.project) if self.capability.supports_labels(resource.asset_type) else {}
-                tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(resource.project)
+                # Remediate (Uses the 'product' seed value instead of GCP Project ID)
+                labels = self.governance.expected_labels(seed_value) if self.capability.supports_labels(resource.asset_type) else {}
+                tags = {} if self.capability.supports_labels(resource.asset_type) else self.governance.expected_tags(seed_value)
                 
                 result = self.executor._execute_single_action({
                     "resource": resource.name,

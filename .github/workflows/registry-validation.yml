@@ -16,15 +16,13 @@ on:
       - "validation/**"
 
 jobs:
-
   validate-registry:
-
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
-    steps:
 
+    steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
@@ -41,3 +39,16 @@ jobs:
           
       - name: Install Requirements
         run: uv pip install -r validation/requirements.txt --system
+
+      # --- NEW STEP: Validate YAML Syntax ---
+      - name: Validate YAML Syntax
+        run: |
+          uv pip install yamllint --system
+          # This checks all .yml and .yaml files in the registry folder for syntax errors
+          yamllint -d "{extends: relaxed, rules: {line-length: disable, document-start: disable}}" registry/
+
+      # --- NEW STEP: Run your custom schema validation ---
+      - name: Run Schema Validation
+        run: |
+          # Replace this with the actual name of your python script
+          python validation/validate.py
