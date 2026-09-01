@@ -33,6 +33,7 @@ class GovernanceService:
         - If evaluating an application resource, it resolves using BOTH actual_project_id and product_seed_label.
         """
         all_apps = self.registry.load_all()
+        target_project_id = str(actual_project_id).strip().lower()
 
         # 1. GCP Project Container Baseline Lookup
         if asset_type == "cloudresourcemanager.googleapis.com/Project":
@@ -41,11 +42,11 @@ class GovernanceService:
                     if binding.get("cloud") != "gcp":
                         continue
                     
-                    project_id = binding.get("projectId")
-                    product_name = application.get("product", "")
+                    project_id = str(binding.get("projectId", "")).strip().lower()
+                    product_name = str(application.get("product", "")).strip().lower()
 
                     # Matches dedicated project baseline (product equals projectId or 'project')
-                    if project_id == actual_project_id and (product_name == actual_project_id or product_name.lower() == "project"):
+                    if project_id == target_project_id and (product_name == "project" or product_name == target_project_id):
                         logger.info(
                             "Matched Project Baseline metadata for project '%s'",
                             actual_project_id,
@@ -56,13 +57,16 @@ class GovernanceService:
             return None, None
 
         # 2. Granular Application Resource Lookup
+        target_product_seed = str(product_seed_label).strip().lower() if product_seed_label else ""
         for application in all_apps:
-            if application.get("product") == product_seed_label:
+            product_name = str(application.get("product", "")).strip().lower()
+            if product_name == target_product_seed:
                 for binding in application.get("bindings", []):
                     if binding.get("cloud") != "gcp":
                         continue
                         
-                    if binding.get("projectId") == actual_project_id:
+                    project_id = str(binding.get("projectId", "")).strip().lower()
+                    if project_id == target_project_id:
                         logger.info(
                             "Matched application '%s' for project '%s'",
                             product_seed_label,
