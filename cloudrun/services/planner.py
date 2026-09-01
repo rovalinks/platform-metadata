@@ -13,6 +13,8 @@ class PlannerService:
     It only creates and persists remediation plans.
     """
 
+    PROJECT_ASSET_TYPE = "cloudresourcemanager.googleapis.com/Project"
+
     def __init__(self):
         self.governance = GovernanceService()
         self.repository = RemediationRepository()
@@ -33,28 +35,44 @@ class PlannerService:
                 continue
 
             project = result.project
+            asset_type = result.asset_type
+            
+            # Extract product seed label if available (will be None for Project containers)
+            product_seed = getattr(result, "product_seed", None)
+            if not product_seed and hasattr(result, "labels"):
+                product_seed = result.labels.get("product")
+
             mode = (
                 "labels"
-                if self.capability.supports_labels(result.asset_type)
+                if self.capability.supports_labels(asset_type)
                 else "tags"
             )
-            cache_key = (project, mode)
+            
+            # Safe cache key incorporating asset type and seed
+            cache_key = (project, asset_type, product_seed, mode)
 
             if cache_key not in expected_metadata_cache:
                 if mode == "labels":
                     expected_metadata_cache[cache_key] = (
-                        self.governance.expected_labels(project)
+                        self.governance.expected_labels(
+                            actual_project_id=project,
+                            product_seed_label=product_seed,
+                            asset_type=asset_type,
+                        )
                     )
                 else:
                     expected_metadata_cache[cache_key] = (
-                        self.governance.expected_tags(project)
+                        self.governance.expected_tags(
+                            actual_project_id=project,
+                            product_seed_label=product_seed,
+                            asset_type=asset_type,
+                        )
                     )
 
             expected_metadata = expected_metadata_cache[cache_key]
 
             # 1. Build the desired metadata using both missing AND incorrect labels
             planned_labels = {}
-            # Combine both lists to catch everything that needs fixing
             remediation_keys = set(result.missing_labels) | set(result.incorrect_labels)
             
             for key in remediation_keys:
@@ -64,15 +82,12 @@ class PlannerService:
             # 2. Decide the enforcement mechanism
             planned_tags = {}
             if mode == "labels":
-                # If no labels need fixing, skip this resource
                 if not planned_labels:
                     continue
             else:
-                # If not label-supported, assume tag-supported
                 planned_tags = planned_labels
                 planned_labels = {}
 
-                # If no tags were generated, skip
                 if not planned_tags:
                     continue
 
@@ -81,9 +96,8 @@ class PlannerService:
                 RemediationPlan(
                     run_id=run_id,
                     project_id=project,
-                    asset_type=result.asset_type,
+                    asset_type=asset_type,
                     resource_name=result.name,
-                    # We pass the full set of keys that triggered remediation
                     missing_labels=list(remediation_keys),
                     planned_labels=planned_labels,
                     planned_tags=planned_tags,
