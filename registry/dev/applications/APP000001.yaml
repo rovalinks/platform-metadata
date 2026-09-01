@@ -1,18 +1,17 @@
 schemaVersion: v1
 
-product: payments
-team: poc_team
-owner: joe
-budgetOwner: dustin
-organization: rouse
-department: engineering
-costCenter: C0000001
-div: dev-div
+product: project
+team: gcp_team
+owner: rks
+budgetOwner: kumar
+organization: personal
+department: it
+costCenter: NA
 
 bindings:
 
   - cloud: gcp
     projectId: payments-dev-1
-    region: europe-southwest1-a
-    environment: devv
+    region: NA
+    environment: dev
     businessCriticality: low
