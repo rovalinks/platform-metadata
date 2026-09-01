@@ -67,11 +67,14 @@ class GovernanceService:
             if key not in ["cloud", "projectId"]:
                 labels[key.lower()] = normalize_label_value(value)
 
-        # 3. Exclude product and region specifically for Project-level resources
+        # 3. Enforce strict whitelist for Project-level resources
         if asset_type == "cloudresourcemanager.googleapis.com/Project":
-            labels.pop("product", None)     
-            labels.pop("application", None) 
-            labels.pop("region", None)      
+            allowed_project_keys = {
+                "team", "owner", "budgetowner", "organization", 
+                "department", "environment", "businesscriticality"
+            }
+            # Keep only the keys that exist in the allowed set
+            labels = {k: v for k, v in labels.items() if k in allowed_project_keys}
 
         return labels
 
@@ -95,10 +98,13 @@ class GovernanceService:
             if key not in ["cloud", "projectId"]:
                 tags[key.lower()] = normalize_label_value(value)
 
-        # 3. Exclude product and region specifically for Project-level resources
+        # 3. Enforce strict whitelist for Project-level resources
         if asset_type == "cloudresourcemanager.googleapis.com/Project":
-            tags.pop("product", None)
-            tags.pop("application", None)
-            tags.pop("region", None)
+            allowed_project_keys = {
+                "team", "owner", "budgetowner", "organization", 
+                "department", "environment", "businesscriticality"
+            }
+            # Keep only the keys that exist in the allowed set
+            tags = {k: v for k, v in tags.items() if k in allowed_project_keys}
 
         return tags
