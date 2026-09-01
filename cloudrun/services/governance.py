@@ -31,6 +31,8 @@ class GovernanceService:
         - If asset_type is a GCP Project container, it resolves the dedicated Project Baseline file 
           (where product matches the projectId or is set to 'project').
         - If evaluating an application resource, it resolves using BOTH actual_project_id and product_seed_label.
+        - Fallback: If product_seed_label is missing/None for a resource, defaults to matching any GCP 
+          application binding under the project.
         """
         all_apps = self.registry.load_all()
         target_project_id = str(actual_project_id).strip().lower()
@@ -58,21 +60,40 @@ class GovernanceService:
 
         # 2. Granular Application Resource Lookup
         target_product_seed = str(product_seed_label).strip().lower() if product_seed_label else ""
+        
+        # --- Attempt 2A: Direct product_seed matching ---
+        if target_product_seed:
+            for application in all_apps:
+                product_name = str(application.get("product", "")).strip().lower()
+                if product_name == target_product_seed:
+                    for binding in application.get("bindings", []):
+                        if binding.get("cloud") != "gcp":
+                            continue
+                            
+                        project_id = str(binding.get("projectId", "")).strip().lower()
+                        if project_id == target_project_id:
+                            logger.info(
+                                "Matched application '%s' for project '%s'",
+                                product_seed_label,
+                                actual_project_id,
+                            )
+                            return application, binding
+
+        # --- Attempt 2B: Fallback for unseeded resources (product_seed is missing/None) ---
         for application in all_apps:
-            product_name = str(application.get("product", "")).strip().lower()
-            if product_name == target_product_seed:
-                for binding in application.get("bindings", []):
-                    if binding.get("cloud") != "gcp":
-                        continue
-                        
-                    project_id = str(binding.get("projectId", "")).strip().lower()
-                    if project_id == target_project_id:
-                        logger.info(
-                            "Matched application '%s' for project '%s'",
-                            product_seed_label,
-                            actual_project_id,
-                        )
-                        return application, binding
+            for binding in application.get("bindings", []):
+                if binding.get("cloud") != "gcp":
+                    continue
+                
+                project_id = str(binding.get("projectId", "")).strip().lower()
+                if project_id == target_project_id:
+                    matched_product = application.get("product", "unknown")
+                    logger.info(
+                        "Fallback matched product application '%s' for unseeded resource in project '%s'",
+                        matched_product,
+                        actual_project_id,
+                    )
+                    return application, binding
 
         logger.warning(f"No registry mapping found for Product: '{product_seed_label}' in Project: '{actual_project_id}'")
         return None, None
