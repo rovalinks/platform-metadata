@@ -24,14 +24,40 @@ class GovernanceService:
                 )
         return projects
 
-    def project_metadata(self, actual_project_id: str, product_seed_label: str):
-        """Returns the application and binding by matching BOTH Project ID and Product."""
-        for application in self.registry.load_all():
-            
-            # 1. First, check if the product matches the developer's label
+    def project_metadata(self, actual_project_id: str, product_seed_label: str = None, asset_type: str = None):
+        """
+        Returns application/project baseline metadata.
+        
+        - If asset_type is a GCP Project container, it resolves the dedicated Project Baseline file 
+          (where product matches the projectId or is set to 'project').
+        - If evaluating an application resource, it resolves using BOTH actual_project_id and product_seed_label.
+        """
+        all_apps = self.registry.load_all()
+
+        # 1. GCP Project Container Baseline Lookup
+        if asset_type == "cloudresourcemanager.googleapis.com/Project":
+            for application in all_apps:
+                for binding in application.get("bindings", []):
+                    if binding.get("cloud") != "gcp":
+                        continue
+                    
+                    project_id = binding.get("projectId")
+                    product_name = application.get("product", "")
+
+                    # Matches dedicated project baseline (product equals projectId or 'project')
+                    if project_id == actual_project_id and (product_name == actual_project_id or product_name.lower() == "project"):
+                        logger.info(
+                            "Matched Project Baseline metadata for project '%s'",
+                            actual_project_id,
+                        )
+                        return application, binding
+
+            logger.warning("No dedicated project-level baseline mapping found for project: %s", actual_project_id)
+            return None, None
+
+        # 2. Granular Application Resource Lookup
+        for application in all_apps:
             if application.get("product") == product_seed_label:
-                
-                # 2. Then, check if this application is bound to the actual GCP project
                 for binding in application.get("bindings", []):
                     if binding.get("cloud") != "gcp":
                         continue
@@ -43,68 +69,66 @@ class GovernanceService:
                             actual_project_id,
                         )
                         return application, binding
-        
+
         logger.warning(f"No registry mapping found for Product: '{product_seed_label}' in Project: '{actual_project_id}'")
         return None, None
 
-    def expected_labels(self, actual_project_id: str, product_seed_label: str, asset_type: str = None):
-        """Returns expected governance labels for a resource based on its project and product seed."""
-        logger.info(f"Loading governance labels for Project: {actual_project_id}, Product: {product_seed_label}")
-        application, binding = self.project_metadata(actual_project_id, product_seed_label)
+    def expected_labels(self, actual_project_id: str, product_seed_label: str = None, asset_type: str = None):
+        """Returns expected governance labels for a resource or project based on asset_type."""
+        logger.info(f"Loading governance labels for Project: {actual_project_id}, Product: {product_seed_label}, AssetType: {asset_type}")
+        application, binding = self.project_metadata(actual_project_id, product_seed_label, asset_type)
         
         if application is None:
             return {}
 
         labels = {}
 
-        # 1. Dynamically extract all root-level YAML keys (No hardcoded translations!)
+        # Extract root-level YAML keys
         for key, value in application.items():
             if key not in ["schemaVersion", "bindings"]:
                 labels[key.lower()] = normalize_label_value(value)
 
-        # 2. Dynamically extract all binding-level YAML keys
+        # Extract binding-level YAML keys
         for key, value in binding.items():
             if key not in ["cloud", "projectId"]:
                 labels[key.lower()] = normalize_label_value(value)
 
-        # 3. Enforce strict whitelist for Project-level resources
+        # Enforce strict whitelist for Project-level container resources
         if asset_type == "cloudresourcemanager.googleapis.com/Project":
             allowed_project_keys = {
                 "team", "owner", "budgetowner", "organization", 
                 "department", "environment", "businesscriticality"
             }
-            # Keep only the keys that exist in the allowed set
             labels = {k: v for k, v in labels.items() if k in allowed_project_keys}
 
         return labels
 
-    def expected_tags(self, actual_project_id: str, product_seed_label: str, asset_type: str = None):
-        """Returns expected governance tags for a resource based on its project and product seed."""
-        logger.info(f"Loading governance tags for Project: {actual_project_id}, Product: {product_seed_label}")
-        application, binding = self.project_metadata(actual_project_id, product_seed_label)
+    def expected_tags(self, actual_project_id: str, product_seed_label: str = None, asset_type: str = None):
+        """Returns expected governance tags for a resource or project based on asset_type."""
+        logger.info(f"Loading governance tags for Project: {actual_project_id}, Product: {product_seed_label}, AssetType: {asset_type}")
+        application, binding = self.project_metadata(actual_project_id, product_seed_label, asset_type)
         
         if application is None:
             return {}
             
         tags = {}
 
-        # 1. Dynamically extract all root-level YAML keys (No hardcoded translations!)
+        # Extract root-level YAML keys
         for key, value in application.items():
             if key not in ["schemaVersion", "bindings"]:
                 tags[key.lower()] = normalize_label_value(value)
 
-        # 2. Dynamically extract all binding-level YAML keys
+        # Extract binding-level YAML keys
         for key, value in binding.items():
             if key not in ["cloud", "projectId"]:
                 tags[key.lower()] = normalize_label_value(value)
 
-        # 3. Enforce strict whitelist for Project-level resources
+        # Enforce strict whitelist for Project-level container resources
         if asset_type == "cloudresourcemanager.googleapis.com/Project":
             allowed_project_keys = {
                 "team", "owner", "budgetowner", "organization", 
                 "department", "environment", "businesscriticality"
             }
-            # Keep only the keys that exist in the allowed set
             tags = {k: v for k, v in tags.items() if k in allowed_project_keys}
 
         return tags
