@@ -73,8 +73,8 @@ class PlannerService:
 
             # 1. Build the desired metadata using both missing AND incorrect labels
             planned_labels = {}
-            remediation_keys = set(result.missing_labels) | set(result.incorrect_labels)
-            
+            remediation_keys = set(result.missing_labels)
+
             for key in remediation_keys:
                 if key in expected_metadata:
                     planned_labels[key] = expected_metadata[key]
